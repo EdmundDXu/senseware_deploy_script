@@ -168,10 +168,10 @@ function complex_deploy(){
 
 function complex_install(){
 	echo -e "${TEXT}--------------------------------------------${END}"
-    printList " 0. 安装epel源"
-    printList " 1. 安装nodejs"
-    printList " 2. 安装pm2"
-    printList " 3. 安装pip"
+    printList " 0. 添加用户"
+    printList " 1. 安装epel源"
+    printList " 2. 安装nodejs"
+    printList " 3. 安装pm2"
     printList " 4. 安装mongodb"
     printList " 5. 前端环境安装"
     printList " 6. 后端环境安装"
@@ -180,7 +180,7 @@ function complex_install(){
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
 
-    FUNC_LIST=("install_epel" "install_nodejs" "install_pm2" "install_pip" "install_mongodb" "install_web_env" "install_backend_env")
+    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_pm2" "install_mongodb" "install_web_env" "install_backend_env")
 
     read_and_handle_choice ${FUNC_LIST}
 
@@ -189,9 +189,9 @@ function complex_install(){
 
 function complex_uninstall(){
 	echo -e "${TEXT}--------------------------------------------${END}"
-    printList " 0. 卸载epel源"
-    printList " 1. 卸载nodejs"
-    printList " 2. 卸载pip"
+    printList " 0. 删除用户"
+    printList " 1. 卸载epel源"
+    printList " 2. 卸载nodejs"
     printList " 3. 卸载venv"
     printList " 4. 卸载mongodb"
     printList " 5. 前端环境卸载"
@@ -200,7 +200,7 @@ function complex_uninstall(){
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-    FUNC_LIST=("remove_epel" "remove_nodejs" "remove_pip" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env")
+    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env")
 
     read_and_handle_choice ${FUNC_LIST}
 }
@@ -212,11 +212,12 @@ function main_list(){
     printList " 1. 自定义部署"
     printList " 2. 自定义安装"
     printList " 3. 自定义卸载"
-    printList " 4. exit"
+    printList " 4. 单机一键安装部署"
+    printList " 5. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
     read CHOICE
-    FUNC_LIST=("quick_start" "complex_deploy" "complex_install" "complex_uninstall")
+    FUNC_LIST=("quick_start" "complex_deploy" "complex_install" "complex_uninstall" "quick_install_and_deploy")
     declare -i LIST_SIZE=${#FUNC_LIST[@]}
 
     if [ ${CHOICE} -ge 0 ] && [ ${CHOICE} -lt ${LIST_SIZE}  ]; then
@@ -246,7 +247,6 @@ function install_web_env(){
 function install_backend_env(){
     printTitle "Install backend env"
     install_epel
-    install_pip
     install_mongodb
     printTitle "backend env installed"
 }
@@ -282,6 +282,35 @@ function remove_backend_env(){
     printTitle "backend env removed"
 }
 
+function quick_install_and_deploy(){
+	install_web_env
+	install_backend_env
+	deploy_venv
+	deploy_web
+	deploy_backend
+}
+
+
+function add_user(){
+	printTitle "Add user ${SDHUSER}"
+	if id ${SDHUSER} &> /dev/null; then
+		printWarn "user ${SDHUSER} exists"
+		exit -1		
+	fi
+    useradd -r ${SDHUSER}
+	usermod -L ${SDHUSER}
+    printTitle "user ${SDHUSER} successfully added"
+}
+
+function remove_user(){
+    printTitle "Remove user ${SDHUSER}"
+    if id ${SDHUSER} &> /dev/null; then
+        printWarn "user ${SDHUSER} not exists"
+    else
+		userdel -r ${SDHUSER}
+    fi
+    printTitle "user ${SDHUSER} successfully removed"
+}
 
 # backup and install epel repo
 function install_epel(){
@@ -358,6 +387,7 @@ function install_nodejs(){
 		printWarn "The installation of nodejs seems to have some problems"
 		return 1
 	fi
+	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/nodejs
 	printTitle "nodejs installed"
 }
 
@@ -416,6 +446,7 @@ function install_pm2(){
     	fi
 	fi
 	cd ${NODE_HOME}/lib/node_modules/ && npm build pm2 -g && cd ${SCRIPT_DIR}
+	chmod -R ${SDHUSER}.${SDHUSER} ${NODE_HOME}
 	printTitle "pm2 installed"
 }
 
@@ -449,12 +480,20 @@ function install_mongodb(){
         printWarn "The installation of ${PROGRAM} seems to have some problems"
         return 1
     fi
+	
+	# mongod配置文件
+	mkdir ${INSTALL_ROOT}/${PROGRAM}/conf
+	mkdir ${INSTALL_ROOT}/${PROGRAM}/data
+	mkdir ${INSTALL_ROOT}/${PROGRAM}/log
+	cp mongod.conf ${INSTALL_ROOT}/${PROGRAM}/conf
 
+	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/${PROGRAM}
     printTitle "${PROGRAM} installed"
 }
 
 function remove_mongodb(){
 	printTitle "Remove mongodb"
+	${INSTALL_ROOT}/mongodb/bin/mongod -f ${INSTALL_ROOT}/mongodb/conf/mongod.conf --shutdown
     printList "remove ${INSTALL_ROOT}/mongodb"
     [ -d ${INSTALL_ROOT}/mongodb ] && rm -rf ${INSTALL_ROOT}/mongodb
     printList 'remove ${MONGODB_HOME} in .bash-profile'
@@ -493,6 +532,10 @@ function make_venv(){
 	
 	# 更新并安装最新的python包
 	download_and_install_python_packages
+
+	# 安装supervisor
+	easy_install supervisor
+	
 	# 安装完后将venv打包
 	archive_venv
 
@@ -514,7 +557,6 @@ function archive_venv(){
     cd ${SCRIPT_DIR}
 
     printTitle "archive venv complete"
-
 }
 
 function deploy_venv(){
@@ -541,6 +583,7 @@ function deploy_venv(){
         return 5
     fi
 	[ -f ${INSTALL_ROOT}/venv/bin/activate ] && . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
+	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/venv*
     printTitle "venv deployed"
 }
 

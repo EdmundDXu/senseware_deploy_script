@@ -1,6 +1,8 @@
 #!/bin/bash
 #
 
+# 运行服务的用户,不可使用已经存在的用户名
+SDHUSER="sdhuser"
 # 所有程序的安装根路径
 INSTALL_ROOT="/usr/local"
 # local project path
