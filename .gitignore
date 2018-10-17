@@ -1,4 +1,5 @@
 deploy/
+deploy.tar.gz
 senseware/
 packages/
 sdh.conf

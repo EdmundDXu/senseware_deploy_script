@@ -43,3 +43,8 @@ URL_FOR_C_INTERFACE="http://172.21.8.128:8080/activeInterface"
 
 # config.py file 
 MONGO=MONGO_YDXX
+
+# mongodb config
+MONGO_USER="ydxx"
+MONGO_PASS="Senseware2017)$)!"
+MONGO_DB="ydxx"

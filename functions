@@ -38,6 +38,14 @@ function printTitle(){
     echo -e "${TITLE}===============${1}===============${END}\n"
 }
 
+function genRandomPasswd(){
+	dict=(a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z "!" "@" "#" "$" "%" "^" "&" "(" ")" "_" "+" "=" 0 1 2 3 4 5 6 7 8 9)
+	for I in `seq 10`; do
+    	RANDPASSWD=${RANDPASSWD}${dict[$RANDOM % ${#dict[@]}]}
+	done
+	echo ${RANDPASSWD}
+}
+
 function init(){
     # default configuration
     DEFAULT_CONFIG_FILE="sdh.conf"
@@ -297,16 +305,18 @@ function add_user(){
 		printWarn "user ${SDHUSER} exists"
 		exit -1		
 	fi
-    useradd -r ${SDHUSER}
+    useradd ${SDHUSER}
 	usermod -L ${SDHUSER}
+	printList "add user ${SDHUSER} and lock login in"
     printTitle "user ${SDHUSER} successfully added"
 }
 
 function remove_user(){
     printTitle "Remove user ${SDHUSER}"
-    if id ${SDHUSER} &> /dev/null; then
+    if ! id ${SDHUSER} &> /dev/null; then
         printWarn "user ${SDHUSER} not exists"
     else
+		printList "remove user ${SDHUSER}"
 		userdel -r ${SDHUSER}
     fi
     printTitle "user ${SDHUSER} successfully removed"
@@ -376,18 +386,20 @@ function install_nodejs(){
 		fi
 		mv ${INSTALL_ROOT}/${NODEJS} ${INSTALL_ROOT}/nodejs
 	fi
-    if ! grep "NODE_HOME" ~/.bash_profile &> /dev/null; then
-	    echo "export NODE_HOME=${INSTALL_ROOT}/nodejs" | tee -a ~/.bash_profile
-		echo "export PATH="'${NODE_HOME}/bin:${PATH}' | tee -a ~/.bash_profile
+    if [ ! -f /etc/profile.d/nodejs.sh ] ; then
+		echo "#!/bin/bash"
+	    echo "export NODE_HOME=${INSTALL_ROOT}/nodejs" | tee -a /etc/profile.d/nodejs.sh
+		echo "export PATH="'${NODE_HOME}/bin:${PATH}' | tee -a /etc/profile.d/nodejs.sh
 	fi
-	. ~/.bash_profile
+	printList "add env file /etc/profile.d/nodejs.sh"
+	. /etc/profile.d/nodejs.sh
 	if node -v && npm config set registry https://registry.npm.taobao.org; then
 		printList "setup npm taobao registry"
 	else
 		printWarn "The installation of nodejs seems to have some problems"
 		return 1
 	fi
-	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/nodejs
+	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/nodejs
 	printTitle "nodejs installed"
 }
 
@@ -395,9 +407,9 @@ function remove_nodejs(){
     printTitle "Remove nodejs"
 	printList "remove ${INSTALL_ROOT}/nodejs"
     [ -d ${INSTALL_ROOT}/nodejs ] && rm -rf ${INSTALL_ROOT}/nodejs
-    printList 'remove ${NODE_HOME} in .bash-profile'
-	if grep "NODE_HOME" ~/.bash_profile &> /dev/null; then
-		sed -i "/NODE_HOME/d" ~/.bash_profile
+    printList 'remove file /etc/profile.d/nodejs.sh'
+	if [ -f /etc/profile.d/nodejs.sh ]; then
+		rm -f /etc/profile.d/nodejs.sh
     fi
     printTitle "nodejs removed"
 }
@@ -446,7 +458,7 @@ function install_pm2(){
     	fi
 	fi
 	cd ${NODE_HOME}/lib/node_modules/ && npm build pm2 -g && cd ${SCRIPT_DIR}
-	chmod -R ${SDHUSER}.${SDHUSER} ${NODE_HOME}
+	chown -R ${SDHUSER}.${SDHUSER} ${NODE_HOME}
 	printTitle "pm2 installed"
 }
 
@@ -471,11 +483,13 @@ function install_mongodb(){
     	fi
         mv ${INSTALL_ROOT}/${MONGODB} ${INSTALL_ROOT}/${PROGRAM}
     fi
-    if ! grep "MONGODB_HOME" ~/.bash_profile &> /dev/null; then
-        echo "export MONGODB_HOME=${INSTALL_ROOT}/${PROGRAM}" | tee -a ~/.bash_profile
-        echo "export PATH="'${MONGODB_HOME}/bin:${PATH}' | tee -a ~/.bash_profile
+    if [ ! -f /etc/profile.d/mongod.sh ]; then
+		echo "#!/bin/bash"
+        echo "export MONGODB_HOME=${INSTALL_ROOT}/${PROGRAM}" | tee -a /etc/profile.d/mongod.sh
+        echo "export PATH="'${MONGODB_HOME}/bin:${PATH}' | tee -a /etc/profile.d/mongod.sh
     fi
-    . ~/.bash_profile
+	printList "add env file /etc/profile.d/mongod.sh"
+    . /etc/profile.d/mongod.sh
     if ! mongo --version; then
         printWarn "The installation of ${PROGRAM} seems to have some problems"
         return 1
@@ -487,7 +501,34 @@ function install_mongodb(){
 	mkdir ${INSTALL_ROOT}/${PROGRAM}/log
 	cp mongod.conf ${INSTALL_ROOT}/${PROGRAM}/conf
 
-	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/${PROGRAM}
+	# 添加root用户和普通用户
+	ADMINPASSWD=`genRandomPasswd`
+	printList "用户名: root 密码: "${ADMINPASSWD}
+	read -p "请记录下root用户的密码，丢失则难以找回(按任意键继续)"
+	${INSTALL_ROOT}/${PROGRAM}/bin/mongod -f ${INSTALL_ROOT}/${PROGRAM}/conf/mongod.conf
+	${INSTALL_ROOT}/${PROGRAM}/bin/mongo --host 127.0.0.1 --port 27017 << EOF
+use admin
+db.createUser(  
+   {  
+     user: "root",  
+     pwd: "${ADMINPASSWD}",  
+	 roles: [ { role: "root", db: "admin" } ]  
+   }  
+)
+
+use ydxx
+db.createUser(
+     {
+       user: "${MONGO_USER}",
+       pwd: "${MONGO_PASS}",
+       roles: [
+          { role: "readWrite", db: "${MONGO_DB}" } ]
+     }
+)
+EOF
+	echo "auth = true" >> ${INSTALL_ROOT}/${PROGRAM}/conf/mongod.conf
+	${INSTALL_ROOT}/mongodb/bin/mongod -f ${INSTALL_ROOT}/mongodb/conf/mongod.conf --shutdown
+	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/${PROGRAM}
     printTitle "${PROGRAM} installed"
 }
 
@@ -496,9 +537,9 @@ function remove_mongodb(){
 	${INSTALL_ROOT}/mongodb/bin/mongod -f ${INSTALL_ROOT}/mongodb/conf/mongod.conf --shutdown
     printList "remove ${INSTALL_ROOT}/mongodb"
     [ -d ${INSTALL_ROOT}/mongodb ] && rm -rf ${INSTALL_ROOT}/mongodb
-    printList 'remove ${MONGODB_HOME} in .bash-profile'
-    if grep "MONGODB_HOME" ~/.bash_profile &> /dev/null; then
-        sed -i "/MONGODB_HOME/d" ~/.bash_profile
+    printList 'remove file /etc/profile.d/mongod.sh'
+    if [ -f /etc/profile.d/mongod.sh ]; then
+        rm -f /etc/profile.d/mongod.sh
     fi
     printTitle "mongodb removed"
 
@@ -583,7 +624,7 @@ function deploy_venv(){
         return 5
     fi
 	[ -f ${INSTALL_ROOT}/venv/bin/activate ] && . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
-	chmod -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/venv*
+	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/venv*
     printTitle "venv deployed"
 }
 
@@ -861,12 +902,16 @@ function modify_backend_config_files(){
 	printTitle "modify config.ini"
 	
 	# 在config.ini中验证MONGO_YDXX配置
-	SED_LINE=`sed -e '/\[MONGO_YDXX\]/,/;HOST=10/!d' ${CONFIGINI} | wc -l`
-	if [ ${SED_LINE} -gt 2 ];then
-		grep -A 5 "\[MONGO_YDXX\]" ${CONFIGINI}
-		printWarn "something wrong with [MONGO_YDXX] in config.ini"
-		exit 7
-	fi
+	while true; do
+		SED_LINE=`sed -e '/\[MONGO_YDXX\]/,/;HOST=10/!d' ${CONFIGINI} | wc -l`
+		if [ ${SED_LINE} -gt 2 ];then
+			grep -A 5 "\[MONGO_YDXX\]" ${CONFIGINI}
+			printWarn "something wrong with [MONGO_YDXX] in config.ini"
+			vim ${CONFIGINI}
+		else
+			break
+		fi
+	done
 
 
 	# 在config.ini中新添加一个集群节点的配置
