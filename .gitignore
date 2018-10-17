@@ -2,3 +2,4 @@ deploy/
 senseware/
 packages/
 sdh.conf
+before_install/
