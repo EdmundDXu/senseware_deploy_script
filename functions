@@ -1,0 +1,1048 @@
+#!/bin/bash
+#
+############################################ useful util function ######################################################
+WARN="\033[37;33m"
+TITLE="\033[37;36m"
+TEXT="\033[32;38m"
+END="\033[0m"
+
+function printWarn(){
+    echo -e "${WARN}${1}${END}"
+}
+
+function readYN(){
+    echo -en "${WARN}${1}${END}"
+    read CHOICE
+    CHOICE=${CHOICE:="y"}
+    if [ ${CHOICE} != "y" ] && [ ${CHOICE} != "Y" ]; then
+        return 3
+    fi
+	return 0
+}
+
+function println(){
+    echo
+}
+
+function printText(){
+    echo -e "${TEXT}--------------------------------------------${END}"
+    echo -e "${TEXT}${1}${END}"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+}
+
+function printList(){
+    echo -e "${TEXT}${1}${END}"
+}
+
+function printTitle(){
+    echo -e "${TITLE}===============${1}===============${END}\n"
+}
+
+function init(){
+    # default configuration
+    DEFAULT_CONFIG_FILE="sdh.conf"
+	SCRIPT_DIR=`pwd`
+
+    # import user's configuration to overwrite default configuration
+    while getopts "c:" arg # 读取命令行选项和参数
+    do
+        case $arg in
+            c)
+                CONFIG_FILE=${OPTARG};; #参数存在$OPTARG中
+            *)
+                echo "Usage: ./`basename ${0}` [-c CONFIG_FILE]"
+            esac
+    done
+
+    # 如果没有指定-f选项，则读取默认的配置文件
+    CONFIG_FILE=${CONFIG_FILE:=${DEFAULT_CONFIG_FILE}}
+    if [ -f ${CONFIG_FILE} ]; then
+        . ${CONFIG_FILE}
+    else
+        echo "Please provide a configuration file"
+        exit -2
+    fi
+}
+
+function getFilename(){
+    ls "packages" | grep ${1} | head -1 | sed "s@\(${1}.*\)\.tar.*@\1@"
+}
+
+function getSuffix(){
+    ls "packages" | grep ${1} | head -1 | sed "s@${1}.*\.\(tar.*\)@\1@"
+}
+
+############################################ useful util function ######################################################
+
+
+############################################ list function to print and act as a menu list ######################################################
+function read_and_handle_choice(){
+	if [ $# -lt 1 ]; then
+		printWarn "Useage: read_and_handle_choice FUNCTION_LIST"
+		return 1
+	fi
+
+	FUNC_LIST=${1}
+	declare -i LIST_SIZE=${#FUNC_LIST[@]}
+    read CHOICE
+	
+	if echo ${CHOICE} | egrep "^[[:digit:]]+$" &> /dev/null && [ ${CHOICE} -eq ${LIST_SIZE} ]; then
+		printList "Bye"
+		exit 0
+		#break
+    elif echo ${CHOICE} | egrep "[[:digit:]]+-[[:digit:]]+" &> /dev/null; then  # check first-second
+        FIRST=`echo ${CHOICE} | cut -d'-' -f1`
+        SECOND=`echo ${CHOICE} | cut -d'-' -f2`
+        if [ ! -z ${FIRST} ] && [ ! -z ${SECOND} ] && [ ${FIRST} -le ${SECOND} ]; then
+            if [ ${FIRST} -ge 0 ] && [ ${FIRST} -lt ${LIST_SIZE} ] && [ ${SECOND} -ge 0 ] && [ ${SECOND} -lt ${LIST_SIZE} ] ; then
+                for ((Item=${FIRST};Item<=${SECOND};Item++));do
+                    ${FUNC_LIST[${Item}]}
+                done
+            else
+                printWarn "Given value out of bounds!"
+		return 6
+            fi
+        else
+            printWarn "Wrong input value!"
+            return 5
+        fi
+    elif echo ${CHOICE} | egrep "^[[:digit:]]+([[:space:]]+[[:digit:]]+)*" &> /dev/null; then  # check 1 2 3
+    	if echo ${CHOICE} | egrep "[^[:digit:]&^[:space:]]" &> /dev/null; then
+    		printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
+        	return 1
+        fi
+        for num in ${CHOICE}; do
+            if [ ${num} -ge 0 ] && [ ${num} -lt ${LIST_SIZE} ] ; then
+                ${FUNC_LIST[${num}]}
+            fi
+        done
+    else
+        printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
+        return 1
+    fi
+}
+
+
+function quick_start(){
+	echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. 前端环境安装"
+    printList " 1. 后端环境安装"
+    printList " 2. 前端项目更新"
+    printList " 3. 后端项目更新"
+    printList " 4. 打包部署文件"
+    printList " 5. 前端快速部署"
+    printList " 6. 后端快速部署"
+    printList " 7. 前端环境卸载"
+    printList " 8. 后端环境卸载"
+    printList " 9. exit"
+    printWarn "Please choice a number to execute: "
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+    
+    FUNC_LIST=("install_web_env" "install_backend_env" "update_web" "update_backend" "archive_all_needs"  "deploy_web" "deploy_backend" "remove_web_env" "remove_backend_env")
+
+    read_and_handle_choice ${FUNC_LIST}
+}
+
+function complex_deploy(){
+	echo -e "${TEXT}--------------------------------------------${END}"
+	printList " 0. 拉取最新代码(需在有网络的主机上运行)"
+	printList " 1. 更新前端配置文件"
+    printList " 2. 更新并构建node packages(需在有网络的主机上运行)"
+    printList " 3. 部署前端"
+    printList " 4. 更新后端配置文件"
+    printList " 5. 打包后端项目"
+    printList " 6. 创建/更新venv(需在有网络的主机上运行)"
+    printList " 7. 部署venv"
+    printList " 8. 部署后端"     
+    printList " 9. exit"
+    printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+    FUNC_LIST=("pull_senseware" "modify_web_config_files" "update_and_build_node_packages" "deploy_web" "modify_backend_config_files" "archive_backend" "make_venv" "deploy_venv" "deploy_backend")
+
+
+    read_and_handle_choice ${FUNC_LIST}
+
+}
+
+
+function complex_install(){
+	echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. 安装epel源"
+    printList " 1. 安装nodejs"
+    printList " 2. 安装pm2"
+    printList " 3. 安装pip"
+    printList " 4. 安装mongodb"
+    printList " 5. 前端环境安装"
+    printList " 6. 后端环境安装"
+    printList " 7. exit"
+    printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+
+    FUNC_LIST=("install_epel" "install_nodejs" "install_pm2" "install_pip" "install_mongodb" "install_web_env" "install_backend_env")
+
+    read_and_handle_choice ${FUNC_LIST}
+
+}
+
+
+function complex_uninstall(){
+	echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. 卸载epel源"
+    printList " 1. 卸载nodejs"
+    printList " 2. 卸载pip"
+    printList " 3. 卸载venv"
+    printList " 4. 卸载mongodb"
+    printList " 5. 前端环境卸载"
+    printList " 6. 后端环境卸载"
+    printList " 7. exit"
+    printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+    FUNC_LIST=("remove_epel" "remove_nodejs" "remove_pip" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env")
+
+    read_and_handle_choice ${FUNC_LIST}
+}
+
+
+function main_list(){
+    echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. quick start"
+    printList " 1. 自定义部署"
+    printList " 2. 自定义安装"
+    printList " 3. 自定义卸载"
+    printList " 4. exit"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+    read CHOICE
+    FUNC_LIST=("quick_start" "complex_deploy" "complex_install" "complex_uninstall")
+    declare -i LIST_SIZE=${#FUNC_LIST[@]}
+
+    if [ ${CHOICE} -ge 0 ] && [ ${CHOICE} -lt ${LIST_SIZE}  ]; then
+		#while true; do
+        ${FUNC_LIST[${CHOICE}]}
+		#done
+    elif [ ${CHOICE} -eq ${LIST_SIZE} ]; then
+		printList "Bye"
+        exit 0
+    else
+        printWarn "Please choice a number to execute: "
+        exit 1
+    fi
+}
+############################################ list function to print and act as a menu list ######################################################
+
+
+############################################ kernel function to implement most of functions ######################################################
+function install_web_env(){
+    printTitle "Install web env"
+    install_epel
+    install_nodejs
+    install_pm2
+    printTitle "web env installed"
+}
+
+function install_backend_env(){
+    printTitle "Install backend env"
+    install_epel
+    install_pip
+    install_mongodb
+    printTitle "backend env installed"
+}
+
+function update_web(){
+    printTitle "update web"
+    pull_senseware
+    modify_web_config_files
+    update_and_build_node_packages
+    printTitle "update web finished"
+}
+
+function update_backend(){
+    printTitle "update backend"
+    pull_senseware
+    modify_backend_config_files
+	archive_backend
+    printTitle "update backend finished"
+}
+
+function remove_web_env(){
+    printTitle "remove web env"
+    remove_epel
+    remove_nodejs
+    printTitle "web env removed"
+}
+
+function remove_backend_env(){
+    printTitle "remove backend env"
+    remove_pip
+    remove_venv
+    remove_mongodb
+    printTitle "backend env removed"
+}
+
+
+# backup and install epel repo
+function install_epel(){
+	printTitle "Install epel repo"
+	DATE=`date +%Y-%m-%d-%H-%M`
+    [ -f /etc/yum.repos.d/epel.repo ] && printWarn "find exists epel repo. rename it as epel.repo.backup-${DATE}" && mv /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel.repo.backup-${DATE}
+    [ -f /etc/yum.repos.d/epel-testing.repo ] && printWarn "find exists epel-testing repo. rename it as epel-testing.repo.backup-${DATE}" && mv /etc/yum.repos.d/epel-testing.repo /etc/yum.repos.d/epel-testing.repo.backup-${DATE}
+    if uname -r | grep "el7" &> /dev/null; then
+		if ping -c 1 -W 1 www.baidu.com &> /dev/null; then
+        	wget -qO /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo && printList "install /etc/yum.repos.d/epel.repo"
+		else
+			if [ -d packages ]; then
+				cp -a packages/epel-7.repo /etc/yum.repos.d/epel.repo
+			else
+				printWarn "directory packages not exist"
+				return 5
+			fi
+		fi
+    elif uname -r | grep "el6" &> /dev/null; then
+        if ping -c 1 -W 1 www.baidu.com &> /dev/null; then
+			wget -qO /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-6.repo && printList "install /etc/yum.repos.d/epel.repo"
+		else
+			if [ -d packages ]; then
+				cp -a packages/epel-6.repo /etc/yum.repos.d/epel.repo
+			else
+                printWarn "directory packages not exist"
+				return 5
+            fi
+		fi
+    else
+        printWarn "Distributions other than centos6 or centos7 are not supported!"
+        return 1
+    fi
+	printTitle "epel repo installed"
+}
+
+function remove_epel(){
+	printTitle "Remove epel repo"
+	printList "remove /etc/yum.repos.d/epel.repo"
+	[ -f /etc/yum.repos.d/epel.repo ] && rm -rf /etc/yum.repos.d/epel.repo
+	printTitle "epel repo removed"
+}
+
+# install and configure nodejs
+function install_nodejs(){
+    printTitle "Install and configure nodejs"
+    if [ -d packages ]; then
+		NODEJS=`getFilename "node"` && SUFFIX=`getSuffix "node"`
+    else
+        printWarn "directory packages not exist"
+		return 5
+    fi
+
+	if [ -d ${INSTALL_ROOT}/nodejs ]; then
+	    printWarn "${INSTALL_ROOT}/nodejs exists with version ${NODEJS}!"
+	else
+		printList "copy nodejs program files to ${INSTALL_ROOT}/nodejs"
+    	if [ -d packages ]; then
+			tar xf "packages/${NODEJS}.${SUFFIX}" -C ${INSTALL_ROOT}
+		else
+			printWarn "directory packages not exist"
+			return 5
+		fi
+		mv ${INSTALL_ROOT}/${NODEJS} ${INSTALL_ROOT}/nodejs
+	fi
+    if ! grep "NODE_HOME" ~/.bash_profile &> /dev/null; then
+	    echo "export NODE_HOME=${INSTALL_ROOT}/nodejs" | tee -a ~/.bash_profile
+		echo "export PATH="'${NODE_HOME}/bin:${PATH}' | tee -a ~/.bash_profile
+	fi
+	. ~/.bash_profile
+	if node -v && npm config set registry https://registry.npm.taobao.org; then
+		printList "setup npm taobao registry"
+	else
+		printWarn "The installation of nodejs seems to have some problems"
+		return 1
+	fi
+	printTitle "nodejs installed"
+}
+
+function remove_nodejs(){
+    printTitle "Remove nodejs"
+	printList "remove ${INSTALL_ROOT}/nodejs"
+    [ -d ${INSTALL_ROOT}/nodejs ] && rm -rf ${INSTALL_ROOT}/nodejs
+    printList 'remove ${NODE_HOME} in .bash-profile'
+	if grep "NODE_HOME" ~/.bash_profile &> /dev/null; then
+		sed -i "/NODE_HOME/d" ~/.bash_profile
+    fi
+    printTitle "nodejs removed"
+}
+
+# you'd better not use it; this code is deprecate
+function install_pip(){
+    printTitle "Install and configure python2/pip2"
+	if [ -d packages ]; then
+		rpm -Uvh packages/python-*
+		rpm -Uvh packages/{python-backports-1.0-8.el7.x86_64.rpm,python-backports-ssl_match_hostname-3.5.0.1-1.el7.noarch.rpm,python-ipaddress-1.0.16-2.el7.noarch.rpm}
+		rpm -Uvh packages/python2-pip-8.1.2-6.el7.noarch.rpm packages/python-setuptools-0.9.8-7.el7.noarch.rpm
+	else
+        printWarn "directory packages not exist"
+        return 5
+    fi
+	[ ! -d ~/.pip ] && mkdir -pv ~/.pip
+	DATE=`date +%Y-%m-%d-%H-%M`
+	[ -f ~/.pip/pip.conf ] && printWarn "find exists ~/.pip/pip.conf. rename it as ~/.pip/pip.conf.backup-${DATE}" && mv ~/.pip/pip.conf ~/.pip/pip.conf.backup-${DATE}
+	printList "create ~/.pip/pip.conf"
+	echo -e "[global]\ntrusted-host =  mirrors.aliyun.com\nindex-url = https://mirrors.aliyun.com/pypi/simple" > ~/.pip/pip.conf
+	printTitle "python2/pip2 installed"
+}
+
+function remove_pip(){
+	printTitle "Remove python2/pip2"
+    if [ -d packages ]; then
+		rpm -evh python2-pip python-backports python-backports-ssl_match_hostname python-ipaddress python-setuptools
+	else
+        printWarn "directory packages not exist"
+        return 5
+    fi
+    printTitle "python2/pip2 removed"
+}
+
+function install_pm2(){
+	printTitle "Install pm2"
+	if [ -d ${NODE_HOME}/lib/node_modules/pm2 ]; then
+		printWarn "pm2 already exists"
+	else
+		printList "copy pm2 program files to ${NODE_HOME}/lib/node_modules/pm2"
+		if [ -d packages ]; then
+			tar xf packages/pm2.tar.gz -C ${NODE_HOME}/lib/node_modules/
+		else
+        	printWarn "directory packages not exist"
+        	return 5
+    	fi
+	fi
+	cd ${NODE_HOME}/lib/node_modules/ && npm build pm2 -g && cd ${SCRIPT_DIR}
+	printTitle "pm2 installed"
+}
+
+function install_mongodb(){
+	PROGRAM="mongodb"
+	printTitle "Install ${PROGRAM}"
+	if [ -d packages ]; then
+		MONGODB=`getFilename "${PROGRAM}"` && SUFFIX=`getSuffix "${PROGRAM}"`
+	else
+        printWarn "directory packages not exist"
+        return 5
+    fi
+    if [ -d ${INSTALL_ROOT}/${PROGRAM} ]; then
+        printWarn "${INSTALL_ROOT}/${PROGRAM} exists with version ${MONGODB}!"
+    else
+        printList "copy ${PROGRAM} program files to ${INSTALL_ROOT}/${PROGRAM}"
+        if [ -d packages ]; then
+			tar xf "packages/${MONGODB}.${SUFFIX}" -C ${INSTALL_ROOT}
+		else
+        	printWarn "directory packages not exist"
+        	return 5
+    	fi
+        mv ${INSTALL_ROOT}/${MONGODB} ${INSTALL_ROOT}/${PROGRAM}
+    fi
+    if ! grep "MONGODB_HOME" ~/.bash_profile &> /dev/null; then
+        echo "export MONGODB_HOME=${INSTALL_ROOT}/${PROGRAM}" | tee -a ~/.bash_profile
+        echo "export PATH="'${MONGODB_HOME}/bin:${PATH}' | tee -a ~/.bash_profile
+    fi
+    . ~/.bash_profile
+    if ! mongo --version; then
+        printWarn "The installation of ${PROGRAM} seems to have some problems"
+        return 1
+    fi
+
+    printTitle "${PROGRAM} installed"
+}
+
+function remove_mongodb(){
+	printTitle "Remove mongodb"
+    printList "remove ${INSTALL_ROOT}/mongodb"
+    [ -d ${INSTALL_ROOT}/mongodb ] && rm -rf ${INSTALL_ROOT}/mongodb
+    printList 'remove ${MONGODB_HOME} in .bash-profile'
+    if grep "MONGODB_HOME" ~/.bash_profile &> /dev/null; then
+        sed -i "/MONGODB_HOME/d" ~/.bash_profile
+    fi
+    printTitle "mongodb removed"
+
+}
+
+
+function make_venv(){
+	printTitle "Make new venv"
+	if ! virtualenv --version &> /dev/null; then
+		printWarn "virtualenv not exists. Install virtualenv"
+		pip2 install virtualenv
+	fi
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup"
+		if [ -d ${INSTALL_ROOT}/venv-backup ] && readYN "${INSTALL_ROOT}/venv-backup exists. Remove it?(Y/n)"; then
+			rm -rf ${INSTALL_ROOT}/venv-backup
+			mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup
+		else
+			printWarn "${INSTALL_ROOT}/venv-backup exists. Please back it up and remove it first."
+			return 2
+		fi
+	fi
+
+	virtualenv ${INSTALL_ROOT}/venv
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
+    else
+        printWarn "${INSTALL_ROOT}/venv not exists. could not activate venv"
+    fi
+	which pip
+	
+	# 更新并安装最新的python包
+	download_and_install_python_packages
+	# 安装完后将venv打包
+	archive_venv
+
+	printTitle "make venv complete"
+}
+
+function archive_venv(){
+	printTitle "archive venv"
+	cd ${INSTALL_ROOT}
+    if [ -d venv ]; then
+        if [ -f ${SCRIPT_DIR}/packages/venv.tar.gz ]; then
+            DATE=`date +%Y-%m-%d-%H-%M`
+            printWarn "${SCRIPT_DIR}/packages/venv.tar.gz exists. Rename it as venv.tar.gz-${DATE}"
+			mv ${SCRIPT_DIR}/packages/venv.tar.gz ${SCRIPT_DIR}/packages/venv.tar.gz-${DATE}
+        fi
+    	printList "save venv as packages/venv.tar.gz"
+        tar czf ${SCRIPT_DIR}/packages/venv.tar.gz venv || return 1
+    fi
+    cd ${SCRIPT_DIR}
+
+    printTitle "archive venv complete"
+
+}
+
+function deploy_venv(){
+	printTitle "start deploy venv"
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup"
+        if [ -d ${INSTALL_ROOT}/venv-backup ]; then
+			if readYN "${INSTALL_ROOT}/venv-backup exists. Remove it?(Y/n)"; then
+            	rm -rf ${INSTALL_ROOT}/venv-backup
+        	else
+            	printWarn "${INSTALL_ROOT}/venv-backup exists. Please back it up first."
+            	return 2
+        	fi
+		fi
+        
+		mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup
+    fi
+	
+	printList "copy venv files to ${INSTALL_ROOT}/venv"
+    if [ -d packages ]; then
+		tar xf packages/venv.tar.gz -C ${INSTALL_ROOT}
+	else
+        printWarn "directory packages not exist"
+        return 5
+    fi
+	[ -f ${INSTALL_ROOT}/venv/bin/activate ] && . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
+    printTitle "venv deployed"
+}
+
+
+function remove_venv(){
+    printTitle "Remove venv"
+	printList "remove ${INSTALL_ROOT}/venv"
+	[ -d ${INSTALL_ROOT}/venv ] && rm -rf ${INSTALL_ROOT}/venv
+    printTitle "venv removed"
+}
+
+
+# ${LOCAL_PROJECT}需要自己准备
+# you'd better not use it; this code is deprecate
+function download_or_update_python_packages(){
+	printTitle "download or update python packages"
+	if [ -d ${LOCAL_PROJECT} ]; then
+		cd ${LOCAL_PROJECT}
+	else
+		printWarn "Local project ${LOCAL_PROJECT} for installation does not exists."
+		return 5
+	fi
+
+	printList "download python packages from requirements.txt to ./packages directory"
+	if [ -f requirements.txt ]; then 
+		pip download -r requirements.txt -d ./packages
+	else
+		printWarn "requirements.txt not exists in ${LOCAL_PROJECT}"
+		return 6
+	fi
+	
+	printList "Archive the packages directory to packages.tar.gz"
+	if [ -d packages ]; then
+		[ -f ../packages/packages.tar.gz ] && rm -rf ../packages/packages.tar.gz
+		tar czf ../packages/packages.tar.gz packages
+		cd ${SCRIPT_DIR}
+	else
+		printWarn "directory packages not exists in ${LOCAL_PROJECT}"
+		return 7
+	fi
+	printTitle "download or update python packages complete"
+}
+
+
+function download_and_install_python_packages(){
+	printTitle "download and install python packages"
+    if [ -d ${LOCAL_PROJECT} ]; then
+        cd ${LOCAL_PROJECT}
+    else
+        printWarn "Local project ${LOCAL_PROJECT} for installation does not exists."
+        return 5
+    fi
+
+    printList "download and install python packages from requirements.txt"
+    if [ -f requirements.txt ]; then
+        pip install -r requirements.txt
+		cd ${SCRIPT_DIR}
+    else
+        printWarn "requirements.txt not exists in ${LOCAL_PROJECT}"
+        return 6
+    fi
+	
+
+    printTitle "download and install python packages complete"
+}
+
+
+# you'd better not use it; this code is deprecate
+function before_install(){
+	printTitle "install the dependencies required by programs"
+    if [ -d packages ]; then
+		cd packages && rpm -Uvh keyutils-libs-devel-1.5.8-3.el7.x86_64.rpm \
+	else
+        printWarn "directory packages not exist"
+        return 5
+    fi
+	e2fsprogs-libs-1.42.9-12.el7_5.x86_64.rpm \
+	krb5-libs-1.15.1-19.el7.x86_64.rpm \
+	libcom_err-1.42.9-12.el7_5.x86_64.rpm \
+	libcom_err-devel-1.42.9-12.el7_5.x86_64.rpm \
+	libkadm5-1.15.1-19.el7.x86_64.rpm \
+	e2fsprogs-1.42.9-12.el7_5.x86_64.rpm \
+	libss-1.42.9-12.el7_5.x86_64.rpm \
+	libsepol-devel-2.5-8.1.el7.x86_64.rpm \
+	libselinux-devel-2.5-12.el7.x86_64.rpm \
+	openssl-1.0.2k-12.el7.x86_64.rpm \
+	krb5-devel-1.15.1-19.el7.x86_64.rpm \
+	openssl-devel-1.0.2k-12.el7.x86_64.rpm \
+	openssl-libs-1.0.2k-12.el7.x86_64.rpm \
+	zlib-devel-1.2.7-17.el7.x86_64.rpm \
+	pcre-devel-8.32-17.el7.x86_64.rpm \
+	libverto-devel-0.2.5-4.el7.x86_64.rpm
+	cd ${SCRIPT_DIR}
+	printTitle "dependencies required by programs installed"
+}
+
+
+# you'd better not use it; this code is deprecate
+function install_python_packages(){
+	printTitle "install python packages"
+	if [ -d ${LOCAL_PROJECT} ]; then
+        cd ${LOCAL_PROJECT}
+    else
+        printWarn "Local project ${LOCAL_PROJECT} for installation does not exists."
+        return 5
+    fi
+
+    printList "Install the python packages listed in requirements.txt from packages.tar.gz"
+    if [ -f requirements.txt ]; then
+		if [ -f ../packages/packages.tar.gz ]; then
+			[ ! -d packages ] && tar xf ../packages/packages.tar.gz -C packages
+			if [ -d packages ]; then
+				. ${INSTALL_ROOT}/venv/bin/activate && pip install -r requirements.txt --no-index --find-links=./packages --ignore-installed || return 9
+			else
+       			printWarn "directory packages not exist"
+        		return 5
+    		fi
+			cd ${SCRIPT_DIR}
+		else
+			printWarn "file packages.tar.gz not exists"
+			return 8
+		fi
+    else
+        printWarn "requirements.txt not exists in ${LOCAL_PROJECT}"
+        return 6
+    fi
+
+	printTitle "python packages installed"
+}
+
+
+function pull_senseware(){
+    printTitle "pull senseware..."
+	if [ -d ${LOCAL_PROJECT} ]; then
+    	cd ${LOCAL_PROJECT}
+	else
+		printWarn "${LOCAL_PROJECT} not exist"
+		exit 5
+	fi
+    if ! git checkout ${GIT_BRANCH}; then
+		printWarn "no such git branch!"
+		exit 6
+	fi
+	pwd
+    if ! git pull; then
+        printWarn "git pull seems to have problems, please fix it manually..."
+        exit 4
+    fi
+	cd ${SCRIPT_DIR}
+	printTitle "pull senseware... complete"
+}
+
+
+function modify_web_config_files(){
+    # modify Constants.js
+    printTitle "modify Constants.js"
+	CONSTANTSJS_NEW_LINE=${CONSTANTSJS_NEW_LINE:=" '172.21.8.120': 'http://172.21.8.118:3082',\n  '172.21.8.121': 'http://172.21.8.121:3082',"}
+	# 添加两行，其中一行是第二台web server和backend server，另一行是nginx server
+	if grep "const allUrl = {" ${CONSTANTSJS} &> /dev/null; then
+		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONSTANTSJS} &> /dev/null; then
+			DATE=`date +%Y-%m-%d-%H-%M`
+			printWarn "Rename Constants.js as Constants.js.newline-${DATE}"
+			cp -a ${CONSTANTSJS} ${CONSTANTSJS}.newline-${DATE}
+			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONSTANTSJS}
+		fi
+	else
+		printWarn "something wrong with Constant.js"
+		exit 7
+	fi
+    printText "`cat ${CONSTANTSJS} | grep -A 10 'const allUrl = {'`"
+
+	if grep "nvrUrl" ${CONSTANTSJS} &> /dev/null && grep "${NVRURL}" ${CONSTANTSJS} &> /dev/null ; then
+        if ! grep "^[[:space:]]*nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*" ${CONSTANTSJS} &> /dev/null; then
+            DATE=`date +%Y-%m-%d-%H-%M`
+            printWarn "Rename Constants.js as Constants.js.nvrUrl-${DATE}"
+            cp -a ${CONSTANTSJS} ${CONSTANTSJS}.nvrUrl-${DATE}
+            # 将其他没被注释的nvrUrl注释起来
+            sed -i "s@^[[:space:]]*\(nvrUrl:.*\)@  // \1@i" ${CONSTANTSJS}
+
+            # 将// nvrUrl: ${NVRURL}的注释去掉
+            sed -i "s@[[:space:]]*//[[:space:]]*\(nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*\)@  \1@i" ${CONSTANTSJS}
+        fi
+    else
+        printWarn "something wrong with nvrUrl in Constant.js"
+        exit 7
+    fi	
+	printText "`cat ${CONSTANTSJS} | grep -C 3 'nvrUrl'`"
+
+	if grep "datawarehouse" ${CONSTANTSJS} &> /dev/null && grep "${DATAWAREHOUSE}" ${CONSTANTSJS} &> /dev/null ; then
+    	if ! grep "^[[:space:]]*datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*" ${CONSTANTSJS} &> /dev/null; then
+    		DATE=`date +%Y-%m-%d-%H-%M`
+			printWarn "Rename Constants.js as Constants.js.datawarehouse-${DATE}"
+			cp -a ${CONSTANTSJS} ${CONSTANTSJS}.datawarehouse-${DATE}
+	    	# 将其他没被注释的datawarehouse注释起来
+	    	sed -i "s@^[[:space:]]*\(datawarehouse:.*\)@  // \1@i" ${CONSTANTSJS}
+
+	    	# 将// datawarehouse: ${DATAWAREHOUSE}的注释去掉
+	    	sed -i "s@[[:space:]]*//[[:space:]]*\(datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*\)@  \1@i" ${CONSTANTSJS}
+    	fi
+	else
+		printWarn "something wrong with datawarehouse in Constant.js"
+		exit 7
+	fi
+    printText "`cat ${CONSTANTSJS} | grep -C 1 'datawarehouse'`"
+
+	printTitle "modify Constant.js complete"
+
+
+    # modify web.js
+    printTitle "modify web.js"
+	# PROD下前端修改监听端口为${WEB_PORT}
+	if grep "app.listen(" ${WEBJS} &> /dev/null; then
+		if ! grep "app.listen(.*${WEB_PORT}" ${WEBJS} &> /dev/null; then
+			DATE=`date +%Y-%m-%d-%H-%M`
+        	printWarn "Rename web.js as web.js.backup-${DATE}"
+        	cp -a ${WEBJS} ${WEBJS}-${DATE}
+			sed -i "s@\(app.listen(\)[[:digit:]]\+\([[:space:]]*,.*\)@\1${WEB_PORT}\2@" ${WEBJS}
+		else
+			printWarn "web.js no change since last modify"
+		fi
+    else
+        printWarn "something went wrong with web.js"
+        return 7
+    fi
+    printText "`cat ${WEBJS} | grep ${WEB_PORT}`"
+	printTitle "modify web.js complete"
+
+}
+
+
+function modify_backend_config_files(){
+    # modify run.py
+    printTitle "modify run.py"
+	# PROD下后端修改监听端口为${BACKEND_PORT}
+	if grep "program.run(.*port=" ${RUNPY} &> /dev/null; then
+		if ! grep "program\.run(.*port[[:space:]]*=[[:space:]]*${BACKEND_PORT}" ${RUNPY} &> /dev/null; then
+			DATE=`date +%Y-%m-%d-%H-%M`
+        	printWarn "Rename run.py as run.py.backup-${DATE}"
+        	cp -a ${RUNPY} ${RUNPY}-${DATE}
+			sed -i "s@\(program\.run(.*port=\)[[:digit:]]\+\([[:space:]]*,.*\)@\1${BACKEND_PORT}\2@" ${RUNPY}
+        else
+            printWarn "run.py no change since last modify"
+        fi
+
+    else
+        printWarn "something went wrong with run.py"
+        return 7
+    fi
+    printText "`cat ${RUNPY} | grep ${BACKEND_PORT}`"
+    printTitle "modify run.py complete"
+
+
+	# modify config.py
+#    printTitle "modify config.py"
+#	 修改mongo = 字段
+#	if grep "mongo[[:space:]]*=[[:space:]]*" ${CONFIGPY} &> /dev/null; then
+#		 if ! grep "mongo[[:space:]]*=[[:space:]]*'${MONGO}'" ${CONFIGPY} &> /dev/null; then
+#		 	DATE=`date +%Y-%m-%d-%H-%M`
+#         	printWarn "Rename config.py as config.py.backup-${DATE}"
+#        	cp -a ${CONFIGPY} ${CONFIGPY}-${DATE}
+#			sed -i "s@\(mongo[[:space:]]*=[[:space:]]*'\).*\('.*\)@\1${MONGO}\2@" ${CONFIGPY}
+#        else
+#            printWarn "config.py no change since last modify"
+#        fi
+#
+#    else
+#        printWarn "something went wrong with config.py"
+#        return 7
+#    fi
+#    printText "`cat ${CONFIGPY} | grep ${MONGO}`"
+#    printTitle "modify config.py complete"
+
+	
+	# modify config.ini
+	printTitle "modify config.ini"
+	
+	# 在config.ini中验证MONGO_YDXX配置
+	SED_LINE=`sed -e '/\[MONGO_YDXX\]/,/;HOST=10/!d' ${CONFIGINI} | wc -l`
+	if [ ${SED_LINE} -gt 2 ];then
+		grep -A 5 "\[MONGO_YDXX\]" ${CONFIGINI}
+		printWarn "something wrong with [MONGO_YDXX] in config.ini"
+		exit 7
+	fi
+
+
+	# 在config.ini中新添加一个集群节点的配置
+	if ! grep "\<${MONGO_CLUSTER}\>" ${CONFIGINI} &> /dev/null; then
+		DATE=`date +%Y-%m-%d-%H-%M`
+        printWarn "Rename config.ini as config.ini.backup-${DATE}"
+        cp -a ${CONFIGINI} ${CONFIGINI}-${DATE}
+		sed -i "1 i${MONGO_CLUSTER_NEW_LINE}" ${CONFIGINI}
+	else
+		printWarn "Already have [${MONGO_CLUSTER}] item, please modify it manually"
+		# return 9
+	fi
+    printText "`cat ${CONFIGINI} | grep -A 5 ${MONGO_CLUSTER}`"
+
+
+	# 在config.ini中修改c接口配置
+	if grep "URL_FOR_C_INTERFACE[[:space:]]*=[[:space:]]*" ${CONFIGINI} &> /dev/null && grep "\<${URL_FOR_C_INTERFACE}" ${CONFIGINI} &> /dev/null; then
+         if ! grep "^[[:space:]]*URL_FOR_C_INTERFACE[[:space:]]*=[[:space:]]*${URL_FOR_C_INTERFACE}" ${CONFIGINI} &> /dev/null; then
+            DATE=`date +%Y-%m-%d-%H-%M`
+            printWarn "Rename config.ini as config.ini.backup-${DATE}"
+            cp -a ${CONFIGINI} ${CONFIGINI}-${DATE}
+
+            # 将其他没被注释的URL_FOR_C_INTERFACE注释起来
+            sed -i "s@^[[:space:]]*\(URL_FOR_C_INTERFACE.*\)@; \1@i" ${CONFIGINI}
+
+            sed -i "s@[[:space:]]*;[[:space:]]*\(URL_FOR_C_INTERFACE[[:space:]]*=[[:space:]]*\)${URL_FOR_C_INTERFACE}\(.*\)@\1${URL_FOR_C_INTERFACE}\2@" ${CONFIGINI}
+        else
+            printWarn "config.ini no change since last modify"
+        fi
+
+    else
+        printWarn "something went wrong with config.ini"
+        return 7
+    fi
+
+    printText "`cat ${CONFIGINI} | grep -C 1 ${URL_FOR_C_INTERFACE}`"
+
+    printTitle "modify config.ini complete" 
+
+}
+
+
+function update_and_build_node_packages(){
+	printTitle "update and build node packages"
+    if [ -d ${LOCAL_PROJECT}/${WEB} ]; then
+        cd ${LOCAL_PROJECT}/${WEB}
+    else
+        printWarn "Local project ${LOCAL_PROJECT}/${WEB} for installation does not exists."
+        return 5
+    fi
+
+    printList "download node packages from package.json to node_modules directory"
+    if [ -f package.json ]; then
+        npm install || return 8
+    else
+        printWarn "package.json not exists in ${LOCAL_PROJECT}/${WEB}"
+        return 6
+    fi
+
+    printList "build node packages"
+    if [ -d node_modules ]; then
+		if [ -d build ] && readYN "find exist build directory, continue?(Y/n)"; then
+			printWarn "remove build directory"
+			rm -rf build
+		fi
+		pwd
+		npm run build
+		cd ${SCRIPT_DIR}
+    else
+        printWarn "directory packages not exists in ${LOCAL_PROJECT}"
+        return 7
+    fi
+	
+	
+	# 对前端项目进行打包
+	archive_web
+
+    printTitle "download or update python packages complete"
+}
+
+function archive_web(){
+	printTitle "archive web project"
+	for web in ${WEB}; do
+		WEB_NAME="`echo "${web}" | cut -d"/" -f1`"
+		if [ -d ${LOCAL_PROJECT}/${WEB_NAME} ]; then
+			printList "archive web project to packages/${WEB_NAME}.tar.gz"
+			cd ${LOCAL_PROJECT}
+			if [ -d ${SCRIPT_DIR}/packages ]; then
+				tar czf ${SCRIPT_DIR}/packages/${WEB_NAME}.tar.gz ${WEB_NAME} || return 11
+			else
+        		printWarn "directory ${SCRIPT_DIR}/packages not exist"
+        		return 5
+    		fi
+			cd ${SCRIPT_DIR}
+		else
+			printWarn "web project not exist"
+			return 2
+		fi
+	done
+	printTitle "archive web project complete"
+}
+
+function archive_backend(){
+	printTitle "archive backend project"
+    
+	for back in ${BACKEND}; do
+    	if [ -d ${LOCAL_PROJECT}/${back} ]; then
+        	printList "archive backend project to packages/${back}.tar.gz"
+        	cd ${LOCAL_PROJECT}
+        	if [ -d ${SCRIPT_DIR}/packages ]; then
+				tar czf ${SCRIPT_DIR}/packages/${back}.tar.gz ${back} || return 11
+			else
+            	printWarn "directory ${SCRIPT_DIR}/packages not exist"
+            	return 5
+        	fi
+        	cd ${SCRIPT_DIR}
+    	else
+        	printWarn "backend project not exist"
+        	return 2
+    	fi
+	done
+    printTitle "archive backend project complete"
+	return 0
+
+}
+
+function deploy_web(){
+    printTitle "start deploy web"
+	for web in ${WEB}; do
+		WEB_NAME="`echo "${web}" | cut -d"/" -f1`"
+    	if [ -d ${WEB_ROOT}/${WEB_NAME} ]; then
+			DATE=`date +%Y-%m-%d-%H-%M`
+        	printWarn "${WEB_ROOT}/${WEB_NAME} exists. Rename it as ${WEB_NAME}-${DATE}"
+        	mv ${WEB_ROOT}/${WEB_NAME} ${WEB_ROOT}/${WEB_NAME}-${DATE}
+    	fi
+    
+   		printList "copy web project to ${WEB_ROOT}/${WEB_NAME}"
+    	[ ! -d ${WEB_ROOT} ] && mkdir -p ${WEB_ROOT}
+		if [ -d packages ]; then
+			tar xf packages/${WEB_NAME}.tar.gz -C ${WEB_ROOT}
+		else
+            printWarn "directory packages not exist"
+            return 5
+        fi
+	done
+    printTitle "web deployed"
+}
+
+function deploy_backend(){
+    printTitle "start deploy backend"
+    DATE=`date +%Y-%m-%d-%H-%M`
+	for back in ${BACKEND}; do
+    	if [ -d ${BACKEND_ROOT}/${back} ]; then
+        	printWarn "${BACKEND_ROOT}/${back} exists. Rename it as ${back}-${DATE}"
+        	mv ${BACKEND_ROOT}/${back} ${BACKEND_ROOT}/${back}-${DATE}
+    	fi
+
+    	printList "copy backend project to ${BACKEND_ROOT}/${back}"
+    	[ ! -d ${BACKEND_ROOT} ] && mkdir -p ${BACKEND_ROOT}
+    	if [ -d packages ]; then
+			tar xf packages/${back}.tar.gz -C ${BACKEND_ROOT}
+		else
+            printWarn "directory packages not exist"
+            return 5
+        fi
+	done
+    # 部署kafka的配置文件和脚本
+    deploy_kafka
+
+    printTitle "backend deployed"
+}
+
+function deploy_kafka(){
+    printTitle "start deploy kafka config"
+    if [ -d ${BACKEND_ROOT}/mongo ]; then
+        printList "copy kafka config to ${BACKEND_ROOT}/mongo"
+        if [ -d packages ]; then
+			tar xf packages/kafka.tar.gz -C ${BACKEND_ROOT}/mongo
+		else
+            printWarn "directory packages not exist"
+            return 5
+        fi
+    else
+        printWarn "${BACKEND_ROOT}/mongo not exist."
+        return 5
+    fi
+
+    printTitle "kafka config deployed"
+}
+
+
+function archive_all_needs(){
+	printTitle "start archive all needs to deploy"
+	ARCHIVE_LIST="kafka mongo notification react"
+	SCRIPT_LIST="do_something.sh functions sdh.conf"
+	if [ -d deploy ]; then
+		printWarn "directory deploy exists. Remove it"
+		rm -rf deploy
+	fi
+	mkdir -pv deploy/packages
+	for archive in ${ARCHIVE_LIST}; do
+		if [ -f packages/${archive}.tar.gz ]; then
+			cp -a packages/${archive}.tar.gz deploy/packages
+		else
+			printWarn "file packages/${archive}.tar.gz not exist"
+		fi
+	done
+	
+	for script in ${SCRIPT_LIST}; do
+        if [ -f ${script} ]; then
+            cp -a ${script} deploy
+        else
+            printWarn "file ${script} not exist"
+        fi
+    done
+
+	printList "archive all needs to deploy.tar.gz"
+	tar czf deploy.tar.gz deploy
+	printTitle "archive all needs finished"
+}
+
+############################################ kernel function to implement most of functions ######################################################

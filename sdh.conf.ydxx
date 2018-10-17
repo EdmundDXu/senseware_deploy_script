@@ -1,0 +1,43 @@
+#!/bin/bash
+#
+
+# 所有程序的安装根路径
+INSTALL_ROOT="/usr/local"
+# local project path
+LOCAL_PROJECT="senseware"
+# web项目的父目录绝对路径
+WEB_ROOT="/root/web"
+# web项目相对根路径的相对路径
+WEB="react/single"
+# web server监听的端口
+WEB_PORT=3090
+# 后端项目的父目录绝对路径
+BACKEND_ROOT="/root/download"
+# 后端项目相对根路径的相对路径
+BACKEND="mongo notification"
+# backend server的监听端口
+BACKEND_PORT=3080
+# 从哪个git branch 拉取最新代码
+GIT_BRANCH=newDonghuan
+
+# config file path
+CONSTANTSJS=/root/script/senseware/react/single/src/general/js/Constants.js
+WEBJS=/root/script/senseware/react/single/web.js
+CONFIGINI=/root/script/senseware/mongo/core_manager/mongo_manager/config.ini
+CONFIGPY=/root/script/senseware/mongo/core_manager/mongo_manager/config.py
+RUNPY=/root/script/senseware/mongo/run.py
+
+# Constants.js file
+NVRURL="http://mvpn.zttc.com:3001"
+DATAWAREHOUSE="//122.229.8.173:3094"
+# constants.js中新添的两行内容，第一行用于第二台web server和backend server， 第二行用于nginx server
+CONSTANTSJS_NEW_LINE=" '172.16.34.249': 'http://172.16.34.249:${BACKEND_PORT}',"
+
+# config.ini file
+# config.ini中新添的字段
+MONGO_CLUSTER=MONGO_NODE2
+MONGO_CLUSTER_NEW_LINE="[${MONGO_CLUSTER}]\nHOST=172.21.8.112\nUSER=sdhuser\nPASS=kd123456\nDB=sdh\n"
+URL_FOR_C_INTERFACE="http://172.21.8.128:8080/activeInterface"
+
+# config.py file 
+MONGO=MONGO_YDXX
