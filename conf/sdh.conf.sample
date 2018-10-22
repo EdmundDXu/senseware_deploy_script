@@ -8,13 +8,13 @@ INSTALL_ROOT="/usr/local"
 # local project path
 LOCAL_PROJECT="senseware"
 # web项目的父目录绝对路径
-WEB_ROOT="/root/web"
+WEB_ROOT="/home/${SDHUSER}/web"
 # web项目相对根路径的相对路径
 WEB="react/single"
 # web server监听的端口
 WEB_PORT=3092
 # 后端项目的父目录绝对路径
-BACKEND_ROOT="/root/download"
+BACKEND_ROOT="/home/${SDHUSER}/backend"
 # 后端项目相对根路径的相对路径
 BACKEND="mongo notification"
 # backend server的监听端口

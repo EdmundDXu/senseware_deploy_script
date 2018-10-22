@@ -13,7 +13,7 @@ function printWarn(){
 function readYN(){
     echo -en "${WARN}${1}${END}"
     read CHOICE
-    CHOICE=${CHOICE:="y"}
+    CHOICE=${CHOICE:="n"}
     if [ ${CHOICE} != "y" ] && [ ${CHOICE} != "Y" ]; then
         return 3
     fi
@@ -146,7 +146,8 @@ function quick_start(){
     printWarn "Please choice a number to execute: "
     echo -e "${TEXT}--------------------------------------------${END}\n"
     
-    FUNC_LIST=("install_web_env" "install_backend_env" "update_web" "update_backend" "archive_all_needs"  "deploy_web" "deploy_backend" "remove_web_env" "remove_backend_env")
+	ARCHIVE_LIST="kafka.tar.gz mongo.tar.gz notification.tar.gz react.tar.gz"
+    FUNC_LIST=("install_web_env" "install_backend_env" "update_web" "update_backend" "archive_all_needs ${ARCHIVE_LIST}"  "deploy_web" "deploy_backend" "remove_web_env" "remove_backend_env")
 
     read_and_handle_choice ${FUNC_LIST}
 }
@@ -204,11 +205,13 @@ function complex_uninstall(){
     printList " 4. 卸载mongodb"
     printList " 5. 前端环境卸载"
     printList " 6. 后端环境卸载"
-    printList " 7. exit"
+    printList " 7. 前端项目卸载"
+    printList " 8. 后端项目卸载"
+    printList " 9. exit"
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env")
+    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env" "remove_web" "remove_backend")
 
     read_and_handle_choice ${FUNC_LIST}
 }
@@ -220,12 +223,15 @@ function main_list(){
     printList " 1. 自定义部署"
     printList " 2. 自定义安装"
     printList " 3. 自定义卸载"
-    printList " 4. 单机一键安装部署"
-    printList " 5. exit"
+	printList " 4. 生成服务进程配置文件"
+    printList " 5. 单机一键安装部署"
+	printList " 6. 单机一键卸载（慎用）"
+	printList " 7. 一键生成安装包"
+    printList " 8. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
     read CHOICE
-    FUNC_LIST=("quick_start" "complex_deploy" "complex_install" "complex_uninstall" "quick_install_and_deploy")
+    FUNC_LIST=("quick_start" "complex_deploy" "complex_install" "complex_uninstall" "generate_conf" "quick_install_and_deploy" "quick_remove" "quick_generate_install_package")
     declare -i LIST_SIZE=${#FUNC_LIST[@]}
 
     if [ ${CHOICE} -ge 0 ] && [ ${CHOICE} -lt ${LIST_SIZE}  ]; then
@@ -284,13 +290,13 @@ function remove_web_env(){
 
 function remove_backend_env(){
     printTitle "remove backend env"
-    remove_pip
     remove_venv
     remove_mongodb
     printTitle "backend env removed"
 }
 
 function quick_install_and_deploy(){
+	add_user
 	install_web_env
 	install_backend_env
 	deploy_venv
@@ -298,6 +304,55 @@ function quick_install_and_deploy(){
 	deploy_backend
 }
 
+function quick_remove(){
+	if ! readYN "Please check again, Are you sure you want to perform the uninstall operation?(y/N) "; then
+		printList "Operation cancelled"
+		exit 3
+	fi
+    remove_user
+    remove_web_env
+    remove_backend_env
+    remove_venv
+    remove_web
+    remove_backend
+}
+
+
+function quick_generate_install_package(){
+	if [ -d packages ]; then
+		ARCHIVE_LIST="`ls packages`"
+	else
+		printWarn "directory packages not exists"
+		exit 1
+	fi
+	archive_all_needs ${ARCHIVE_LIST}
+}
+
+function version_control(){
+	printTitle "update project version file"
+	if [ -d ${LOCAL_PROJECT} ]; then
+        cd ${LOCAL_PROJECT}
+    else
+        printWarn "${LOCAL_PROJECT} not exist"
+        exit 5
+    fi
+
+	echo "version `date +%y%m%d`" > ../VERSION
+	git log | head -1 >> ../VERSION
+	cd ${SCRIPT_DIR}
+	printTitle "version file updated"
+}
+
+function generate_conf(){
+	printTitle "generate user defined config file"
+	if [ -d conf ] && [ -f ./conf/generate_conf.sh ]; then
+		./conf/generate_conf.sh
+	else
+		printWarn "directory conf or file ./conf/generate_conf.sh not exists"
+		exit 1
+	fi
+	printTitle "generate config file complete"
+}
 
 function add_user(){
 	printTitle "Add user ${SDHUSER}"
@@ -317,6 +372,12 @@ function remove_user(){
         printWarn "user ${SDHUSER} not exists"
     else
 		printList "remove user ${SDHUSER}"
+			${INSTALL_ROOT}/venv/bin/supervisorctl << EOF
+shutdown
+EOF
+		for user_process in `ps aux | grep sdhuser | cut -d' ' -f4`; do
+			kill ${user_process}
+		done
 		userdel -r ${SDHUSER}
     fi
     printTitle "user ${SDHUSER} successfully removed"
@@ -360,7 +421,10 @@ function install_epel(){
 function remove_epel(){
 	printTitle "Remove epel repo"
 	printList "remove /etc/yum.repos.d/epel.repo"
-	[ -f /etc/yum.repos.d/epel.repo ] && rm -rf /etc/yum.repos.d/epel.repo
+	[ -f /etc/yum.repos.d/epel.repo ] && rm -rf /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel.repo.backup-*
+	printList "remove /etc/yum.repos.d/epel-testing.repo"
+	[ -f /etc/yum.repos.d/epel-testing.repo ] && rm -rf /etc/yum.repos.d/epel-testing.repo /etc/yum.repos.d/epel-testing.repo.backup-*
+
 	printTitle "epel repo removed"
 }
 
@@ -399,7 +463,7 @@ function install_nodejs(){
 		printWarn "The installation of nodejs seems to have some problems"
 		return 1
 	fi
-	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/nodejs
+	chown -R ${SDHUSER}:${SDHUSER} ${INSTALL_ROOT}/nodejs
 	printTitle "nodejs installed"
 }
 
@@ -499,7 +563,13 @@ function install_mongodb(){
 	mkdir ${INSTALL_ROOT}/${PROGRAM}/conf
 	mkdir ${INSTALL_ROOT}/${PROGRAM}/data
 	mkdir ${INSTALL_ROOT}/${PROGRAM}/log
-	cp mongod.conf ${INSTALL_ROOT}/${PROGRAM}/conf
+	if [ -d conf ] && [ -f conf/mongod.conf ]; then
+		cp conf/mongod.conf ${INSTALL_ROOT}/${PROGRAM}/conf
+	else
+		printWarn "directory conf or file conf/mongod.conf not exists"
+		exit 1
+	fi
+	mongod -f ${INSTALL_ROOT}/${PROGRAM}/conf/mongod.conf
 
 	# 添加root用户和普通用户
 	ADMINPASSWD=`genRandomPasswd`
@@ -553,14 +623,9 @@ function make_venv(){
 		pip2 install virtualenv
 	fi
 	if [ -d ${INSTALL_ROOT}/venv ]; then
-		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup"
-		if [ -d ${INSTALL_ROOT}/venv-backup ] && readYN "${INSTALL_ROOT}/venv-backup exists. Remove it?(Y/n)"; then
-			rm -rf ${INSTALL_ROOT}/venv-backup
-			mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup
-		else
-			printWarn "${INSTALL_ROOT}/venv-backup exists. Please back it up and remove it first."
-			return 2
-		fi
+		DATE=`date +%Y-%m-%d-%H-%M`
+		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup-${DATE}"
+		mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup-${DATE}
 	fi
 
 	virtualenv ${INSTALL_ROOT}/venv
@@ -587,13 +652,8 @@ function archive_venv(){
 	printTitle "archive venv"
 	cd ${INSTALL_ROOT}
     if [ -d venv ]; then
-        if [ -f ${SCRIPT_DIR}/packages/venv.tar.gz ]; then
-            DATE=`date +%Y-%m-%d-%H-%M`
-            printWarn "${SCRIPT_DIR}/packages/venv.tar.gz exists. Rename it as venv.tar.gz-${DATE}"
-			mv ${SCRIPT_DIR}/packages/venv.tar.gz ${SCRIPT_DIR}/packages/venv.tar.gz-${DATE}
-        fi
     	printList "save venv as packages/venv.tar.gz"
-        tar czf ${SCRIPT_DIR}/packages/venv.tar.gz venv || return 1
+        tar czf ${SCRIPT_DIR}/packages/venv.tar.gz venv
     fi
     cd ${SCRIPT_DIR}
 
@@ -603,17 +663,9 @@ function archive_venv(){
 function deploy_venv(){
 	printTitle "start deploy venv"
 	if [ -d ${INSTALL_ROOT}/venv ]; then
-		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup"
-        if [ -d ${INSTALL_ROOT}/venv-backup ]; then
-			if readYN "${INSTALL_ROOT}/venv-backup exists. Remove it?(Y/n)"; then
-            	rm -rf ${INSTALL_ROOT}/venv-backup
-        	else
-            	printWarn "${INSTALL_ROOT}/venv-backup exists. Please back it up first."
-            	return 2
-        	fi
-		fi
-        
-		mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup
+		DATE=`date +%Y-%m-%d-%H-%M`
+		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup-${DATE}"
+		mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup-${DATE}
     fi
 	
 	printList "copy venv files to ${INSTALL_ROOT}/venv"
@@ -624,16 +676,18 @@ function deploy_venv(){
         return 5
     fi
 	[ -f ${INSTALL_ROOT}/venv/bin/activate ] && . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
-	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/venv*
+	chown -R ${SDHUSER}:${SDHUSER} ${INSTALL_ROOT}/venv
 	
 	# deploy supervisord.conf
 	if [ -d conf ]; then
 		printList "deploy conf/supervisord.conf to /etc/supervisord.conf"
 		cp conf/supervisord.conf /etc/
+		mkdir -p /var/supervisor/
 	else
 		printWarn "directory conf not exist"
         return 5
 	fi
+	chown -R ${SDHUSER}:${SDHUSER} /etc/supervisord.conf
     printTitle "venv deployed"
 }
 
@@ -642,6 +696,9 @@ function remove_venv(){
     printTitle "Remove venv"
 	printList "remove ${INSTALL_ROOT}/venv"
 	[ -d ${INSTALL_ROOT}/venv ] && rm -rf ${INSTALL_ROOT}/venv
+
+	printList "remove ${INSTALL_ROOT}/venv-backup"
+	rm -rf ${INSTALL_ROOT}/venv-backup-*
     printTitle "venv removed"
 }
 
@@ -783,6 +840,8 @@ function pull_senseware(){
         exit 4
     fi
 	cd ${SCRIPT_DIR}
+	# 每次拉取新代码都更新一次VERSION文件
+	version_control
 	printTitle "pull senseware... complete"
 }
 
@@ -1066,7 +1125,16 @@ function deploy_web(){
             return 5
         fi
 	done
+	chown -R ${SDHUSER}:${SDHUSER} ${WEB_ROOT}
     printTitle "web deployed"
+}
+
+
+function remove_web(){
+	printTitle "remove web project"
+	printList "remove ${WEB_ROOT}/${WEB_NAME}"
+	rm -rf ${WEB_ROOT}/${WEB_NAME}
+	printTitle "web project ${WEB_ROOT}/${WEB_NAME} removed"
 }
 
 function deploy_backend(){
@@ -1089,8 +1157,17 @@ function deploy_backend(){
 	done
     # 部署kafka的配置文件和脚本
     deploy_kafka
-
+	chown -R ${SDHUSER}:${SDHUSER} ${BACKEND_ROOT}
     printTitle "backend deployed"
+}
+
+function remove_backend(){
+	printTitle "remove backend project"
+	for back in ${BACKEND}; do
+    	printList "remove ${BACKEND_ROOT}/${back}"
+    	rm -rf ${BACKEND_ROOT}/${back}
+    	printTitle "backend project ${BACKEND_ROOT}/${back} removed"
+	done
 }
 
 function deploy_kafka(){
@@ -1115,18 +1192,20 @@ function deploy_kafka(){
 
 function archive_all_needs(){
 	printTitle "start archive all needs to deploy"
-	ARCHIVE_LIST="kafka mongo notification react"
-	SCRIPT_LIST="do_something.sh functions sdh.conf"
+	ARCHIVE_LIST="$@"
+	echo ${ARCHIVE_LIST}
+	SCRIPT_LIST="install.sh functions sdh.conf VERSION"
+	CONF_LIST="mongod.conf supervisord.conf"
 	if [ -d deploy ]; then
 		printWarn "directory deploy exists. Remove it"
 		rm -rf deploy
 	fi
 	mkdir -pv deploy/packages
 	for archive in ${ARCHIVE_LIST}; do
-		if [ -f packages/${archive}.tar.gz ]; then
-			cp -a packages/${archive}.tar.gz deploy/packages
+		if [ -f packages/${archive} ]; then
+			cp -a packages/${archive} deploy/packages
 		else
-			printWarn "file packages/${archive}.tar.gz not exist"
+			printWarn "file packages/${archive} not exist"
 		fi
 	done
 	
@@ -1138,8 +1217,22 @@ function archive_all_needs(){
         fi
     done
 
+	if [ ! -d conf ]; then
+		printWarn "directory conf not exists"
+		exit 1
+	else
+		mkdir deploy/conf
+	fi
+	for Conf in ${CONF_LIST}; do
+        if [ -f conf/${Conf} ]; then
+            cp -a conf/${Conf} deploy/conf
+        else
+            printWarn "file conf/${Conf} not exist"
+        fi
+    done
+	
 	printList "archive all needs to deploy.tar.gz"
-	tar czf deploy.tar.gz deploy
+	tar czf deploy.tar.gz --remove-files deploy
 	printTitle "archive all needs finished"
 }
 

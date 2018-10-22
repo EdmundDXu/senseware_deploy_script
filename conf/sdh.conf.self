@@ -8,13 +8,13 @@ INSTALL_ROOT="/usr/local"
 # local project path
 LOCAL_PROJECT="senseware"
 # web项目的父目录绝对路径
-WEB_ROOT="/root/web"
+WEB_ROOT="/home/${SDHUSER}/web"
 # web项目相对根路径的相对路径
 WEB="react/single"
 # web server监听的端口
 WEB_PORT=3092
 # 后端项目的父目录绝对路径
-BACKEND_ROOT="/root/download"
+BACKEND_ROOT="/home/${SDHUSER}/backend"
 # 后端项目相对根路径的相对路径
 BACKEND="mongo notification"
 # backend server的监听端口
@@ -31,9 +31,9 @@ RUNPY=/root/script/senseware/mongo/run.py
 
 # Constants.js file
 NVRURL="//122.224.116.44:3001"
-DATAWAREHOUSE="//122.229.8.173:3094"
+DATAWAREHOUSE="//10.52.14.189:8088"
 # constants.js中新添的两行内容，第一行用于第二台web server和backend server， 第二行用于nginx server
-CONSTANTSJS_NEW_LINE=" '172.21.8.120': 'http://172.21.8.118:3082',\n  '172.21.8.121': 'http://172.21.8.121:3082',"
+CONSTANTSJS_NEW_LINE=" '192.168.31.121': 'http://192.168.31.121:3082',"
 
 # config.ini file
 # config.ini中新添的字段
@@ -42,7 +42,7 @@ MONGO_CLUSTER_NEW_LINE="[${MONGO_CLUSTER}]\nHOST=172.21.8.112\nUSER=sdhuser\nPAS
 URL_FOR_C_INTERFACE="http://172.21.8.128:8080/activeInterface"
 
 # config.py file 
-MONGO=MONGO_IN
+MONGO=SDH
 
 # mongodb config
 MONGO_USER="sdhuser"

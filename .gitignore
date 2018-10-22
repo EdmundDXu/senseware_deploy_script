@@ -5,3 +5,4 @@ packages/
 sdh.conf
 before_install/
 proxy.sh
+VERSION
