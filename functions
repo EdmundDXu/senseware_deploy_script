@@ -1090,6 +1090,7 @@ function deploy_kafka(){
         printList "copy kafka config to ${BACKEND_ROOT}/mongo"
         if [ -d packages ]; then
 			tar xf packages/kafka.tar.gz -C ${BACKEND_ROOT}/mongo
+			cp ${BACKEND_ROOT}/mongo/kafka_module/config.py ${BACKEND_ROOT}/mongo
 		else
             printWarn "directory packages not exist"
             return 5
