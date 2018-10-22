@@ -516,7 +516,7 @@ db.createUser(
    }  
 )
 
-use ydxx
+use ${MONGO_DB}
 db.createUser(
      {
        user: "${MONGO_USER}",
@@ -575,7 +575,7 @@ function make_venv(){
 	download_and_install_python_packages
 
 	# 安装supervisor
-	easy_install supervisor
+	pip2 install supervisor
 	
 	# 安装完后将venv打包
 	archive_venv
@@ -625,6 +625,15 @@ function deploy_venv(){
     fi
 	[ -f ${INSTALL_ROOT}/venv/bin/activate ] && . ${INSTALL_ROOT}/venv/bin/activate && printList "activate venv"
 	chown -R ${SDHUSER}.${SDHUSER} ${INSTALL_ROOT}/venv*
+	
+	# deploy supervisord.conf
+	if [ -d conf ]; then
+		printList "deploy conf/supervisord.conf to /etc/supervisord.conf"
+		cp conf/supervisord.conf /etc/
+	else
+		printWarn "directory conf not exist"
+        return 5
+	fi
     printTitle "venv deployed"
 }
 
