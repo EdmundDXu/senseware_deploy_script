@@ -272,6 +272,7 @@ function install_web_env(){
     install_epel
     install_nodejs
     install_pm2
+	install_font
     printTitle "web env installed"
 }
 
@@ -1269,7 +1270,31 @@ function archive_all_needs(){
 	
 	printList "archive all needs to deploy.tar.gz"
 	tar czf deploy.tar.gz --remove-files deploy
-	printTitle "archive all needs finished"
+	printTitle "archive all needs complete"
+}
+
+function install_font(){
+	printTitle "install arial font"
+	if ! rpm -ql fontconfig &> /dev/null; then
+		printList "install fontconfig-2.10.95-11.el7.x86_64"
+		rpm -Uvh packages/fontconfig-2.10.95-11.el7.x86_64.rpm
+	fi
+
+	if [ ! -d /usr/share/fonts ]; then
+		printWarn "install fontconfig-2.10.95-11.el7.x86_64 failed"
+		exit 4
+	fi
+
+	if [ -d packages ] && [ -f packages/arial.tar.gz ]; then
+		printList "install arial font"
+		tar xf packages/arial.tar.gz /usr/share/fonts
+		fc-cache -fv
+	else 
+		printWarn "directory packages or file packages/arial.tar.gz not exists"
+		exit 5
+	fi
+	
+	printTitle "install ariali font complete"
 }
 
 ############################################ kernel function to implement most of functions ######################################################
