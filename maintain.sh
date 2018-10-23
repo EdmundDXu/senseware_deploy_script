@@ -7,5 +7,5 @@ DEFAULT_CONFIG_FILE="sdh.conf"
 
 init
 while true; do
-    main_list
+    maintain_list
 done
