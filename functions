@@ -246,6 +246,23 @@ function main_list(){
         exit 1
     fi
 }
+
+maintain_list(){
+	echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. 启动所有服务"
+    printList " 1. 停止所有服务"
+    printList " 2. 验证服务运行状态"
+    printList " 3. 验证服务安装情况"
+    printList " 4. exit"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+    read CHOICE
+
+	FUNC_LIST=("start_all_service" "stop_all_service" "verify_service_running_state" "verify_service_install_state")
+	read_and_handle_choice ${FUNC_LIST}
+}
+
+
 ############################################ list function to print and act as a menu list ######################################################
 
 
@@ -679,26 +696,45 @@ function deploy_venv(){
 	chown -R ${SDHUSER}:${SDHUSER} ${INSTALL_ROOT}/venv
 	
 	# deploy supervisord.conf
-	if [ -d conf ]; then
+	if [ -d conf ] && [ -f conf/supervisord.conf ]; then
 		printList "deploy conf/supervisord.conf to /etc/supervisord.conf"
 		cp conf/supervisord.conf /etc/
 		mkdir -p /var/supervisor/
 	else
-		printWarn "directory conf not exist"
+		printWarn "directory conf or file conf/supervisord.conf not exist"
         return 5
 	fi
 	chown -R ${SDHUSER}:${SDHUSER} /etc/supervisord.conf
+
+	# deploy supervisord.service
+    if [ -d conf ] && [ -f conf/supervisord.service ]; then
+        printList "deploy conf/supervisord.service to /usr/lib/systemd/system/supervisord.service"
+        cp conf/supervisord.service /usr/lib/systemd/system
+		printList "enable supervisord startup on boot"
+		systemctl enable supervisord
+    else
+        printWarn "directory conf or file conf/supervisord.service not exist"
+        return 5
+    fi
+
     printTitle "venv deployed"
 }
 
 
 function remove_venv(){
     printTitle "Remove venv"
+	printList "remove supervisord"
+	systemctl disable supervisord
+	systemctl stop supervisord
+	rm -rf /usr/lib/systemd/system/supervisord.service
+	rm -rf /etc/supervisord.conf
+
 	printList "remove ${INSTALL_ROOT}/venv"
 	[ -d ${INSTALL_ROOT}/venv ] && rm -rf ${INSTALL_ROOT}/venv
 
 	printList "remove ${INSTALL_ROOT}/venv-backup"
 	rm -rf ${INSTALL_ROOT}/venv-backup-*
+
     printTitle "venv removed"
 }
 
@@ -1237,3 +1273,204 @@ function archive_all_needs(){
 }
 
 ############################################ kernel function to implement most of functions ######################################################
+
+
+############################################ maintaining function here ##############################################################
+function start_all_service(){
+	printTitle "start all service"
+	if systemctl status supervisord &> /dev/null; then
+		printList "supervisord were already started"
+	else
+		printList "start supervisord"
+		systemctl start supervisord
+	fi
+	
+	if supervisorctl status mongod | grep RUNNING; then
+		printList "mongod service were already started"
+	else
+		supervisorctl status mongod
+		printList "start mongod"
+		supervisorctl start mongod
+	fi
+	
+	if supervisorctl status web | grep RUNNING; then
+		printList "web service were already started"
+	else
+        supervisorctl status web
+        printList "start web"
+        supervisorctl start web
+    fi
+	
+	if supervisorctl status run | grep RUNNING; then
+		printList "run service were already started"
+    else
+        supervisorctl status run
+        printList "start run"
+        supervisorctl start run
+    fi
+	
+	printTitle "start service complete"
+}
+
+function stop_all_service(){
+	printTitle "stop all service"
+	
+    if supervisorctl status mongod | grep RUNNING; then
+        printList "stop mongod"
+        supervisorctl stop mongod
+    else
+		systemctl status mongod
+        printList "mongod service are not running"
+    fi
+
+    if supervisorctl status web | grep RUNNING; then
+        printList "stop web"
+        supervisorctl stop web
+    else
+        supervisorctl status web
+        printList "web service are not running"
+    fi
+    
+    if supervisorctl status run | grep RUNNING; then
+        printList "stop run"
+        supervisorctl stop run
+    else
+        supervisorctl status run
+        printList "run service are not running"
+    fi
+
+	if systemctl status supervisord &> /dev/null; then
+        printList "stop supervisord"
+        systemctl stop supervisord
+    else
+        printList "supervisord are not running"
+    fi
+
+	printTitle "stop service complete"
+}
+
+function verify_service_running_state(){
+	printTitle "verify service running state"
+
+	if systemctl status supervisord &> /dev/null; then
+        printList "supervisord were already started"
+    else
+        systemctl status supervisord
+		printList "supervisord are not running"
+		exit 2
+    fi
+    
+    if supervisorctl status mongod | grep RUNNING; then
+        printList "mongod service were already started"
+    else
+        supervisorctl status mongod
+		printList "mongod are not running"
+    fi
+    
+    if supervisorctl status web | grep RUNNING; then
+        printList "web service were already started"
+    else
+        supervisorctl status web
+		printList "web are not running"
+    fi
+
+    if supervisorctl status run | grep RUNNING; then
+        printList "run service were already started"
+    else
+        supervisorctl status run
+		printList "run are not running"
+    fi
+
+	printTitle "verify service running state complete"
+}
+
+function verify_service_install_state(){
+	printTitle "verify service install state"
+
+	. /etc/profile
+
+	printTitle "check epel"
+	if ls /etc/yum.repos.d/epel.repo &> /dev/null; then
+		printList "epel [ok]"
+	else
+		printWarn "epel [failed]"
+		printWarn "please reinstall epel"
+	fi
+	printTitle "check epel complete"
+
+	printTitle "check nodejs"
+	if node -v &> /dev/null; then
+		printList "`node -v` [ok]"
+		if npm -v &> /dev/null; then
+			printList "`npm -v` [ok]"
+		else
+			printWarn "npm [failed]"
+			printWarn "please reinstall nodejs"
+		fi
+	else
+		printWarn "node [failed]"
+		printWarn "please reinstall nodejs"
+	fi
+	printTitle "check nodejs complete"
+
+	printTitle "check mongodb"
+	if mongo --version &> /dev/null; then
+		printList "`mongo --version | head -1` [ok]"
+		if mongod --version &> /dev/null; then
+			printList "`mongod --version | head -1` [ok]"
+		else
+			printWarn "mongod [failed]"
+			printWarn "please reinstall mongodb"
+		fi
+	else
+		printWarn "mongo [failed]"
+		printWarn "please reinstall mongodb"
+	fi
+	printTitle "check mongodb complete"
+
+	printTitle "check venv"
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+		${INSTALL_ROOT}/venv/bin/activate
+		if pip2 --version &> /dev/null; then
+			printList "`pip2 --version`"
+			printList "venv [ok]"
+		else
+			printWarn "venv [failed]"
+			printWarn "pip2 not exists.Please redeploy venv"
+		fi
+	else
+		printWarn "venv [failed]"
+		printWarn "directory ${INSTALL_ROOT}/venv not exists.Please redeploy venv"
+	fi
+	printTitle "check venv complete"
+
+	printTitle "check supervisord"
+	if supervisord --version &> /dev/null; then
+		printList "supervisord `supervisord --version` [ok]"
+	else
+		printWarn "supervisord [failed]"
+		printWarn "Please redeploy venv"
+	fi
+	printTitle "check supervisord complete"
+
+	printTitle "check web project"
+	if [ -d ${WEB_ROOT}/${WEB}]; then
+		printList "web project [ok]"
+	else
+		printWarn "web project [failed]"
+		printWarn "Please redeploy web project"
+	fi
+	printTitle "check web complete"
+
+	printTitle "check backend project"
+	for back in ${BACKEND}; do
+		if [ -d ${BACKEND_ROOT}/${back} ]; then
+			printList "backend project ${back} [ok]"
+		else
+			printWarn "backend project ${back} [failed].Please redeploy backend project"
+		fi
+	done
+	printTitle "check backend complete"
+
+	printTitle "verify service install state complete"
+}
