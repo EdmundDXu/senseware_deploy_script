@@ -50,6 +50,8 @@ function init(){
     # default configuration
     DEFAULT_CONFIG_FILE="sdh.conf"
 	SCRIPT_DIR=`pwd`
+	PROGRAM_LIST="web run mongod run_m fsu_receiver kafka"
+	SERVICE_LIST="supervisord redis"
 
     # import user's configuration to overwrite default configuration
     while getopts "c:" arg # 读取命令行选项和参数
@@ -86,12 +88,13 @@ function getSuffix(){
 ############################################ list function to print and act as a menu list ######################################################
 function read_and_handle_choice(){
 	if [ $# -lt 1 ]; then
-		printWarn "Useage: read_and_handle_choice FUNCTION_LIST"
+		printWarn "Usage: read_and_handle_choice FUNCTION_LIST"
 		return 1
 	fi
 
-	FUNC_LIST=${1}
-	declare -i LIST_SIZE=${#FUNC_LIST[@]}
+	#FUNC_LIST=${1}
+	#declare -i LIST_SIZE=${#FUNC_LIST[@]}
+	declare -i LIST_SIZE=${#}
 	stty erase ^H
     read CHOICE
 	
@@ -105,7 +108,9 @@ function read_and_handle_choice(){
         if [ ! -z ${FIRST} ] && [ ! -z ${SECOND} ] && [ ${FIRST} -le ${SECOND} ]; then
             if [ ${FIRST} -ge 0 ] && [ ${FIRST} -lt ${LIST_SIZE} ] && [ ${SECOND} -ge 0 ] && [ ${SECOND} -lt ${LIST_SIZE} ] ; then
                 for ((Item=${FIRST};Item<=${SECOND};Item++));do
-                    ${FUNC_LIST[${Item}]}
+                   # ${FUNC_LIST[${Item}]}
+					let Item++ # 此处使用自加的原因是位置变量是从1开始的，而我的列表是从0开始的
+					${!Item}
                 done
             else
                 printWarn "Given value out of bounds!"
@@ -122,7 +127,9 @@ function read_and_handle_choice(){
         fi
         for num in ${CHOICE}; do
             if [ ${num} -ge 0 ] && [ ${num} -lt ${LIST_SIZE} ] ; then
-                ${FUNC_LIST[${num}]}
+                #${FUNC_LIST[${num}]}
+				let num++ # 此处使用自加的原因是位置变量是从1开始的，而我的列表是从0开始的
+				${!num}
             fi
         done
     else
@@ -150,7 +157,7 @@ function quick_start(){
 	ARCHIVE_LIST="kafka.tar.gz mongo.tar.gz notification.tar.gz react.tar.gz"
     FUNC_LIST=("install_web_env" "install_backend_env" "update_web" "update_backend" "archive_all_needs ${ARCHIVE_LIST}"  "deploy_web" "deploy_backend" "remove_web_env" "remove_backend_env")
 
-    read_and_handle_choice ${FUNC_LIST}
+    read_and_handle_choice "${FUNC_LIST[@]}"
 }
 
 function complex_deploy(){
@@ -162,16 +169,15 @@ function complex_deploy(){
     printList " 4. 更新后端配置文件"
     printList " 5. 打包后端项目"
     printList " 6. 创建/更新venv(需在有网络的主机上运行)"
-    printList " 7. 部署venv"
-    printList " 8. 部署后端"     
-    printList " 9. exit"
+    printList " 7. 部署后端"     
+    printList " 8. exit"
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-    FUNC_LIST=("pull_senseware" "modify_web_config_files" "update_and_build_node_packages" "deploy_web" "modify_backend_config_files" "archive_backend" "make_venv" "deploy_venv" "deploy_backend")
+    FUNC_LIST=("pull_senseware" "modify_web_config_files" "update_and_build_node_packages" "deploy_web" "modify_backend_config_files" "archive_backend" "make_venv" "deploy_backend")
 
 
-    read_and_handle_choice ${FUNC_LIST}
+    read_and_handle_choice "${FUNC_LIST[@]}"
 
 }
 
@@ -182,16 +188,18 @@ function complex_install(){
     printList " 1. 安装epel源"
     printList " 2. 安装nodejs"
     printList " 3. 安装mongodb"
-    printList " 4. 前端环境安装"
-    printList " 5. 后端环境安装"
-    printList " 6. exit"
+    printList " 4. 安装venv"
+    printList " 5. 安装redis"
+    printList " 6. 前端环境安装"
+    printList " 7. 后端环境安装"
+    printList " 8. exit"
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
 
-    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_web_env" "install_backend_env")
+    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_venv" "install_redis" "install_web_env" "install_backend_env")
 
-    read_and_handle_choice ${FUNC_LIST}
+    read_and_handle_choice "${FUNC_LIST[@]}"
 
 }
 
@@ -201,6 +209,7 @@ function complex_uninstall(){
     printList " 0. 删除用户"
     printList " 1. 卸载epel源"
     printList " 2. 卸载nodejs"
+	printList " 3. 卸载redis"
     printList " 3. 卸载venv"
     printList " 4. 卸载mongodb"
     printList " 5. 前端环境卸载"
@@ -211,9 +220,9 @@ function complex_uninstall(){
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env" "remove_web" "remove_backend")
+    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_redis" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env" "remove_web" "remove_backend")
 
-    read_and_handle_choice ${FUNC_LIST}
+    read_and_handle_choice "${FUNC_LIST[@]}"
 }
 
 
@@ -254,13 +263,92 @@ maintain_list(){
     printList " 1. 停止所有服务"
     printList " 2. 验证服务运行状态"
     printList " 3. 验证服务安装情况"
-    printList " 4. exit"
+	printList " 4. 用户服务管理"
+	printList " 5. 系统服务管理"
+    printList " 6. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-	FUNC_LIST=("start_all_service" "stop_all_service" "verify_service_running_state" "verify_service_install_state")
-	read_and_handle_choice ${FUNC_LIST}
+	FUNC_LIST=("start_all_service" "stop_all_service" "verify_service_running_state" "verify_service_install_state" "maintain_process_list" "maintain_service_list")
+	read_and_handle_choice "${FUNC_LIST[@]}"
 }
 
+function maintain_process_list(){
+	declare -i Index=0
+	echo -e "${TEXT}--------------------------------------------${END}"
+	for Prog in ${PROGRAM_LIST}; do
+    	printList " ${Index}. ${Prog}"
+		FUNC_LIST[${Index}]="maintain_process ${Prog}"
+		let Index++
+	done
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+	
+    read_and_handle_choice "${FUNC_LIST[@]}"
+}
+
+function maintain_process(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: maintain_process PROCESS"
+        return 1
+    fi
+
+	PROCES="${1}"
+	echo -e "${TEXT}--------------------------------------------${END}"
+	printList " 0. 查看${PROCES}状态"
+	printList " 1. 启动${PROCES}"
+	printList " 2. 停止${PROCES}"
+	printList " 3. 重启${PROCES}"
+	printList " 4. exit"
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+   
+	FUNC_LIST=("process_status ${PROCES}" "process_startup ${PROCES}" "process_shutdown ${PROCES}" "process_restart ${PROCES}")
+    read_and_handle_choice "${FUNC_LIST[@]}"
+}
+
+function maintain_service_list(){
+    declare -i Index=0
+    echo -e "${TEXT}--------------------------------------------${END}"
+    for Serv in ${SERVICE_LIST}; do
+        printList " ${Index}. ${Serv}"
+        FUNC_LIST[${Index}]="maintain_service ${Serv}"
+        let Index++
+    done
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+
+    read_and_handle_choice "${FUNC_LIST[@]}"
+}
+
+function maintain_service(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: maintain_service SERVICE"
+        return 1
+    fi
+
+	Serv=${1}
+	echo -e "${TEXT}--------------------------------------------${END}"
+    printList " 0. 查看${Serv}状态"
+    printList " 1. 启动${Serv}"
+    printList " 2. 停止${Serv}"
+    printList " 3. 重启${Serv}"
+	if [ ${Serv} == "supervisord" ]; then
+    	printList " 4. 重新读取${PROGRESS}配置文件(会导致重启所有服务)"
+    	printList " 5. exit"
+	else
+    	printList " 4. exit"
+	fi
+    echo -e "${TEXT}--------------------------------------------${END}\n"
+   
+    FUNC_LIST=("systemctl status ${Serv}" "systemctl start ${Serv}" "systemctl stop ${Serv}" "systemctl restart ${Serv}")
+	if [ ${Serv} == "supervisord" ]; then
+    	if [ -d ${INSTALL_ROOT}/venv ]; then
+			FUNC_LIST[${#FUNC_LIST[@]}]="${INSTALL_ROOT}/venv/bin/supervisorctl reload"
+		else
+			printWarn "directory ${INSTALL_ROOT}/venv not exists. Please install venv first"
+		fi
+    fi
+
+	read_and_handle_choice "${FUNC_LIST[@]}"
+
+}
 
 ############################################ list function to print and act as a menu list ######################################################
 
@@ -278,6 +366,8 @@ function install_backend_env(){
     printTitle "Install backend env"
     install_epel
     install_mongodb
+	install_venv
+	install_redis
     printTitle "backend env installed"
 }
 
@@ -306,8 +396,10 @@ function remove_web_env(){
 
 function remove_backend_env(){
     printTitle "remove backend env"
+	remove_epel
     remove_venv
     remove_mongodb
+	remove_redis
     printTitle "backend env removed"
 }
 
@@ -315,7 +407,6 @@ function quick_install_and_deploy(){
 	add_user
 	install_web_env
 	install_backend_env
-	deploy_venv
 	deploy_web
 	deploy_backend
 }
@@ -649,9 +740,21 @@ function make_venv(){
 	# 更新并安装最新的python包
 	download_and_install_python_packages
 
+	# 安装kafka
+	pip2 install kafka
+
 	# 安装supervisor
 	pip2 install supervisor
 	
+	# 安装gunicorn
+	pip2 install gunicorn
+
+	# 安装gevent
+	pip2 install gevent
+
+	# 安装celery
+	pip2 install celery
+
 	# 安装完后将venv打包
 	archive_venv
 
@@ -670,8 +773,8 @@ function archive_venv(){
     printTitle "archive venv complete"
 }
 
-function deploy_venv(){
-	printTitle "start deploy venv"
+function install_venv(){
+	printTitle "start install venv"
 	if [ -d ${INSTALL_ROOT}/venv ]; then
 		DATE=`date +%Y-%m-%d-%H-%M`
 		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup-${DATE}"
@@ -710,7 +813,7 @@ function deploy_venv(){
         return 5
     fi
 
-    printTitle "venv deployed"
+    printTitle "venv installed"
 }
 
 
@@ -736,6 +839,48 @@ EOF
 	rm -rf ${INSTALL_ROOT}/venv-backup-*
 
     printTitle "venv removed"
+}
+
+function install_redis(){
+    printTitle "install redis"
+	if rpm -ql redis &> /dev/null; then
+		printList "redis was already installed"
+		return 0
+	fi
+
+    if [ -d packages ]; then
+        if [ -f packages/redis-3.2.12-1.el7.x86_64.rpm ] && [ -f packages/jemalloc-3.6.0-1.el7.x86_64.rpm ]; then
+			printList "start install redis"
+        	yum install -y packages/redis-3.2.12-1.el7.x86_64.rpm packages/jemalloc-3.6.0-1.el7.x86_64.rpm
+			printList "enable redis server start up on boot"
+			systemctl enable redis
+		else
+			printWarn "file packages/redis-3.2.12-1.el7.x86_64.rpm or packages/jemalloc-3.6.0-1.el7.x86_64.rpm not exists"
+			exit 6
+		fi
+    else
+        printWarn "directory packages not exists in ${LOCAL_PROJECT}"
+        return 7
+    fi
+    printTitle "install redis complete"
+
+}
+
+function remove_redis(){
+	printTitle "remove redis"
+    if ! rpm -ql redis &> /dev/null; then
+        printList "redis was not installed"
+        return 0
+    fi
+	
+	printList "stop redis"
+	systemctl stop redis
+	printList "remove redis.service"
+	systemctl disable redis
+	printList "start remove redis"
+	yum remove -y redis
+	
+	printTitle "remove redis complete"
 }
 
 
@@ -1308,37 +1453,25 @@ function start_all_service(){
 		printWarn "venv not installed. Please install venv first"
 		exit 4
 	fi
+	
+	for Serv in ${SERVICE_LIST}; do
+		if systemctl status ${Serv} &> /dev/null; then
+			printList "${Serv} were already started"
+		else
+			printList "start ${Serv}"
+			systemctl start ${Serv}
+		fi
+	done
 
-	if systemctl status supervisord &> /dev/null; then
-		printList "supervisord were already started"
-	else
-		printList "start supervisord"
-		systemctl start supervisord
-	fi
-	
-	if supervisorctl status mongod | grep RUNNING; then
-		printList "mongod service were already started"
-	else
-		supervisorctl status mongod
-		printList "start mongod"
-		supervisorctl start mongod
-	fi
-	
-	if supervisorctl status web | grep RUNNING; then
-		printList "web service were already started"
-	else
-        supervisorctl status web
-        printList "start web"
-        supervisorctl start web
-    fi
-	
-	if supervisorctl status run | grep RUNNING; then
-		printList "run service were already started"
-    else
-        supervisorctl status run
-        printList "start run"
-        supervisorctl start run
-    fi
+	for Prog in ${PROGRAM_LIST}; do
+		if supervisorctl status ${Prog} | grep RUNNING; then
+			printList "${Prog} service were already started"
+		else
+			supervisorctl status ${Prog}
+			printList "start ${Prog}"
+			supervisorctl start ${Prog}
+		fi
+	done
 
 	deactivate
 	printTitle "start service complete"
@@ -1353,36 +1486,24 @@ function stop_all_service(){
         exit 4
     fi
 	
-    if supervisorctl status mongod | grep RUNNING; then
-        printList "stop mongod"
-        supervisorctl stop mongod
-    else
-		systemctl status mongod
-        printList "mongod service are not running"
-    fi
+	for Prog in ${PROGRAM_LIST}; do
+    	if supervisorctl status ${Prog} | grep RUNNING; then
+        	printList "stop ${Prog}"
+        	supervisorctl stop ${Prog}
+    	else
+			systemctl status ${Prog}
+        	printList "${Prog} service are not running"
+    	fi
+	done
 
-    if supervisorctl status web | grep RUNNING; then
-        printList "stop web"
-        supervisorctl stop web
-    else
-        supervisorctl status web
-        printList "web service are not running"
-    fi
-    
-    if supervisorctl status run | grep RUNNING; then
-        printList "stop run"
-        supervisorctl stop run
-    else
-        supervisorctl status run
-        printList "run service are not running"
-    fi
-
-	if systemctl status supervisord &> /dev/null; then
-        printList "stop supervisord"
-        systemctl stop supervisord
-    else
-        printList "supervisord are not running"
-    fi
+	for Serv in ${SERVICE_LIST}; do
+        if systemctl status ${Serv} &> /dev/null; then
+        	printList "stop ${Serv}"
+        	systemctl stop ${Serv}
+        else
+        	printList "${Serv} are not running"
+        fi
+    done
 
 	deactivate
 	printTitle "stop service complete"
@@ -1398,34 +1519,26 @@ function verify_service_running_state(){
         exit 4
     fi
 
-	if systemctl status supervisord &> /dev/null; then
-        printList "supervisord are running"
-    else
-        systemctl status supervisord
-		printList "supervisord are not running"
-		exit 2
-    fi
-    
-    if supervisorctl status mongod | grep RUNNING; then
-        printList "mongod service are running"
-    else
-        supervisorctl status mongod
-		printList "mongod are not running"
-    fi
-    
-    if supervisorctl status web | grep RUNNING; then
-        printList "web service are running"
-    else
-        supervisorctl status web
-		printList "web are not running"
-    fi
-
-    if supervisorctl status run | grep RUNNING; then
-        printList "run service are running"
-    else
-        supervisorctl status run
-		printList "run are not running"
-    fi
+	for Serv in ${SERVICE_LIST}; do
+        if systemctl status ${Serv} &> /dev/null; then
+            printList "${Serv} are running"
+        else
+        	systemctl status ${Serv}
+			printList "${Serv} are not running"
+			if [ ${Serv} == "supervisord" ]; then
+				exit 2
+			fi
+        fi
+    done
+ 	
+	for Prog in ${PROGRAM_LIST}; do
+    	if supervisorctl status ${Prog} | grep RUNNING; then
+        	printList "${Prog} service are running"
+    	else
+        	supervisorctl status ${Prog}
+			printList "${Prog} are not running"
+    	fi
+	done
 	
 	deactivate
 	printTitle "verify service running state complete"
@@ -1475,6 +1588,15 @@ function verify_service_install_state(){
 	fi
 	printTitle "check mongodb complete"
 
+	printTitle "check redis"
+    if rpm -ql redis &> /dev/null && redis-server --version &> /dev/null; then
+        printList "`redis-server --version` [ok]"
+    else
+        printWarn "redis-server [failed]"
+        printWarn "please reinstall redis"
+    fi
+    printTitle "check redis complete"
+
 	printTitle "check venv"
 	if [ -d ${INSTALL_ROOT}/venv ]; then
 		. ${INSTALL_ROOT}/venv/bin/activate
@@ -1500,6 +1622,24 @@ function verify_service_install_state(){
 	fi
 	printTitle "check supervisord complete"
 
+	printTitle "check gunicorn"
+    if gunicorn --version &> /dev/null; then
+        printList "`gunicorn --version` [ok]"
+    else
+        printWarn "gunicorn [failed]"
+        printWarn "Please redeploy venv"
+    fi
+    printTitle "check gunicorn complete"
+
+	printTitle "check celery"
+    if celery --version &> /dev/null; then
+        printList "celery `celery --version` [ok]"
+    else
+        printWarn "celery [failed]"
+        printWarn "Please redeploy venv"
+    fi
+    printTitle "check celery complete"
+	
 	printTitle "check web project"
 	if [ -d ${WEB_ROOT}/${WEB} ]; then
 		printList "web project [ok]"
@@ -1521,4 +1661,171 @@ function verify_service_install_state(){
 
 	deactivate
 	printTitle "verify service install state complete"
+}
+
+function process_status(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: process_status PROCESS"
+        return 1
+    fi
+	
+	PROCES="${1}"
+	printTitle "print ${PROCES} status"
+
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate
+    else
+        printWarn "venv not installed. Please install venv first"
+        exit 4
+    fi
+
+    if ! systemctl status supervisord &> /dev/null; then
+        printList "supervisord are not running, bring it up first"
+		systemctl start supervisord
+    fi
+
+	supervisorctl status ${PROCES}
+
+	deactivate
+	printTitle "print process status complete"
+}
+
+function process_startup(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: process_startup PROCESS"
+        return 1
+    fi
+	
+	PROCES="${1}"
+	printTitle "bring up ${PROCES} "
+
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate
+    else
+        printWarn "venv not installed. Please install venv first"
+        exit 4
+    fi
+
+	if ! systemctl status supervisord &> /dev/null; then
+        printList "supervisord are not running, bring it up first"
+        systemctl start supervisord
+    fi
+	
+	supervisorctl start ${PROCES}
+
+	deactivate
+	printTitle "bring up ${PROCES} complete"
+}
+
+function process_shutdown(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: process_shutdown PROCESS"
+        return 1
+    fi
+	
+	PROCES="${1}"
+	printTitle "shutdown ${PROCES} "
+
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate
+    else
+        printWarn "venv not installed. Please install venv first"
+        exit 4
+    fi
+	
+	if ! systemctl status supervisord &> /dev/null; then
+        printList "supervisord are not running, bring it up first"
+        systemctl start supervisord
+    fi
+
+	supervisorctl stop ${PROCES}
+
+	deactivate
+	printTitle "shutdown ${PROCES} complete"
+}
+
+function process_restart(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: process_restart PROCESS"
+        return 1
+    fi
+	
+	PROCES="${1}"
+	printTitle "restart ${PROCES} "
+
+	if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate
+    else
+        printWarn "venv not installed. Please install venv first"
+        exit 4
+    fi
+	
+	if ! systemctl status supervisord &> /dev/null; then
+        printList "supervisord are not running, bring it up first"
+        systemctl start supervisord
+    fi
+
+	supervisorctl restart ${PROCES}
+
+	deactivate
+	printTitle "restart ${PROCES} complete"
+}
+
+function service_status(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: service_status SERVICE"
+        return 1
+    fi
+
+	SERVIC="${1}"
+	printTitle "status ${SERVIC} "
+
+	systemctl status ${SERVIC}
+	
+	printTitle "status ${SERVIC} "
+}
+
+function service_startup(){
+    if [ $# -lt 1 ]; then
+        printWarn "Useage: service_startup SERVICE"
+        return 1
+    fi
+
+    SERVIC="${1}"
+    printTitle "start ${SERVIC} "
+
+    systemctl start ${SERVIC}
+    
+    printTitle "start ${SERVIC} "
+
+}
+
+function service_shutdown(){
+    if [ $# -lt 1 ]; then
+        printWarn "Useage: service_shutdown SERVICE"
+        return 1
+    fi
+
+    SERVIC="${1}"
+    printTitle "stop ${SERVIC} "
+
+    systemctl stop ${SERVIC}
+    
+    printTitle "stop ${SERVIC} "
+
+}
+
+function service_restart(){
+    if [ $# -lt 1 ]; then
+        printWarn "Useage: service_restart SERVICE"
+        return 1
+    fi
+
+    SERVIC="${1}"
+    printTitle "restart ${SERVIC} "
+
+    systemctl restart ${SERVIC}
+    
+    printTitle "restart ${SERVIC} "
+
 }
