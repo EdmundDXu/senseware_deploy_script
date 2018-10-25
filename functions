@@ -4,7 +4,12 @@
 WARN="\033[37;33m"
 TITLE="\033[37;36m"
 TEXT="\033[32;38m"
+TIPS="\033[36;36m"
 END="\033[0m"
+
+function tips(){
+    echo -e "${TIPS}${1}${END}"
+}
 
 function printWarn(){
     echo -e "${WARN}${1}${END}"
@@ -99,9 +104,9 @@ function read_and_handle_choice(){
     read CHOICE
 	
 	if echo ${CHOICE} | egrep "^[[:digit:]]+$" &> /dev/null && [ ${CHOICE} -eq ${LIST_SIZE} ]; then
-		printList "Bye"
-		exit 0
-		#break
+		#printList "Bye"
+		#exit 0
+		break
     elif echo ${CHOICE} | egrep "[[:digit:]]+-[[:digit:]]+" &> /dev/null; then  # check first-second
         FIRST=`echo ${CHOICE} | cut -d'-' -f1`
         SECOND=`echo ${CHOICE} | cut -d'-' -f2`
@@ -270,9 +275,12 @@ maintain_list(){
 
 	FUNC_LIST=("start_all_service" "stop_all_service" "verify_service_running_state" "verify_service_install_state" "maintain_process_list" "maintain_service_list")
 	read_and_handle_choice "${FUNC_LIST[@]}"
+
 }
 
 function maintain_process_list(){
+while true; do
+
 	declare -i Index=0
 	FUNC_LIST=()
 	echo -e "${TEXT}--------------------------------------------${END}"
@@ -281,13 +289,17 @@ function maintain_process_list(){
 		FUNC_LIST[${Index}]="maintain_process ${Prog}"
 		let Index++
 	done
-	printList " ${Index}. exit"
+	printList " ${Index}. 返回"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 	
     read_and_handle_choice "${FUNC_LIST[@]}"
+
+done
 }
 
 function maintain_process(){
+while true; do
+
 	if [ $# -lt 1 ]; then
         printWarn "Useage: maintain_process PROCESS"
         return 1
@@ -300,14 +312,21 @@ function maintain_process(){
 	printList " 2. 停止${PROCES}"
 	printList " 3. 重启${PROCES}"
 	printList " 4. 查看${PROCES}运行日志"
-	printList " 5. exit"
+	printList " 5. 返回"
     echo -e "${TEXT}--------------------------------------------${END}\n"
+	tips "tips: 查看运行日志会进入全屏模式，键入q即可退出。在全屏模式下，"
+    tips "键入shift+f可以跟踪日志输出，键入ctrl+c可以退出跟踪模式。"
+
    
 	FUNC_LIST=("process_status ${PROCES}" "process_startup ${PROCES}" "process_shutdown ${PROCES}" "process_restart ${PROCES}" "process_log ${PROCES}")
     read_and_handle_choice "${FUNC_LIST[@]}"
+
+done
 }
 
 function maintain_service_list(){
+while true; do
+
     declare -i Index=0
 	FUNC_LIST=()
     echo -e "${TEXT}--------------------------------------------${END}"
@@ -316,13 +335,17 @@ function maintain_service_list(){
         FUNC_LIST[${Index}]="maintain_service ${Serv}"
         let Index++
     done
-	printList " ${Index}. exit"
+	printList " ${Index}. 返回"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
     read_and_handle_choice "${FUNC_LIST[@]}"
+
+done
 }
 
 function maintain_service(){
+while true; do
+
 	if [ $# -lt 1 ]; then
         printWarn "Useage: maintain_service SERVICE"
         return 1
@@ -336,9 +359,9 @@ function maintain_service(){
     printList " 3. 重启${ServI}"
 	if [ ${ServI} == "supervisord" ]; then
     	printList " 4. 重新读取${ServI}配置文件(会导致重启所有服务)"
-    	printList " 5. exit"
+    	printList " 5. 返回"
 	else
-    	printList " 4. exit"
+    	printList " 4. 返回"
 	fi
     echo -e "${TEXT}--------------------------------------------${END}\n"
    
@@ -353,6 +376,7 @@ function maintain_service(){
 
 	read_and_handle_choice "${FUNC_LIST[@]}"
 
+done
 }
 
 ############################################ list function to print and act as a menu list ######################################################
@@ -1692,7 +1716,7 @@ function process_status(){
 	supervisorctl status ${PROCES}
 
 	deactivate
-	printTitle "print process status complete"
+	printTitle "print ${PROCES} status complete"
 }
 
 function process_startup(){
@@ -1797,10 +1821,10 @@ function process_log(){
         systemctl start supervisord
     fi
 
-   	tail -f /var/supervisor/${PROCES}.log
+   	less +F /var/supervisor/${PROCES}.log
 
     deactivate
-    printTitle "restart ${PROCES} complete"
+    printTitle "log ${PROCES} complete"
 
 }
 
@@ -1811,12 +1835,12 @@ function service_status(){
     fi
 
 	SERVIC="${1}"
-	printTitle "status ${SERVIC} "
+	printTitle "print ${SERVIC} status"
 
 	printList "status ${SERVIC}"
 	systemctl status ${SERVIC}
 	
-	printTitle "status ${SERVIC} "
+	printTitle "print ${SERVIC} status complete"
 }
 
 function service_startup(){
@@ -1831,7 +1855,7 @@ function service_startup(){
 	printList "start ${SERVIC}"
     systemctl start ${SERVIC}
     
-    printTitle "start ${SERVIC} "
+    printTitle "start ${SERVIC} complete"
 
 }
 
@@ -1847,7 +1871,7 @@ function service_shutdown(){
 	printList "stop ${SERVIC}"
     systemctl stop ${SERVIC}
     
-    printTitle "stop ${SERVIC} "
+    printTitle "stop ${SERVIC} complete"
 
 }
 
@@ -1863,6 +1887,6 @@ function service_restart(){
 	printList "restart ${SERVIC}"
     systemctl restart ${SERVIC}
     
-    printTitle "restart ${SERVIC} "
+    printTitle "restart ${SERVIC} complete"
 
 }
