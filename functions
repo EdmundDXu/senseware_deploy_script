@@ -48,10 +48,10 @@ function genRandomPasswd(){
 
 function init(){
     # default configuration
-    DEFAULT_CONFIG_FILE="sdh.conf"
-	SCRIPT_DIR=`pwd`
-	PROGRAM_LIST="web run mongod run_m fsu_receiver kafka"
-	SERVICE_LIST="supervisord redis"
+    export DEFAULT_CONFIG_FILE="sdh.conf"
+	export SCRIPT_DIR=`pwd`
+	export PROGRAM_LIST="web run mongod run_m fsu_receiver kafka"
+	export SERVICE_LIST="supervisord redis"
 
     # import user's configuration to overwrite default configuration
     while getopts "c:" arg # 读取命令行选项和参数
@@ -65,7 +65,7 @@ function init(){
     done
 
     # 如果没有指定-f选项，则读取默认的配置文件
-    CONFIG_FILE=${CONFIG_FILE:=${DEFAULT_CONFIG_FILE}}
+    export CONFIG_FILE=${CONFIG_FILE:=${DEFAULT_CONFIG_FILE}}
     if [ -f ${CONFIG_FILE} ]; then
         . ${CONFIG_FILE}
     else
@@ -274,12 +274,14 @@ maintain_list(){
 
 function maintain_process_list(){
 	declare -i Index=0
+	FUNC_LIST=()
 	echo -e "${TEXT}--------------------------------------------${END}"
 	for Prog in ${PROGRAM_LIST}; do
     	printList " ${Index}. ${Prog}"
 		FUNC_LIST[${Index}]="maintain_process ${Prog}"
 		let Index++
 	done
+	printList " ${Index}. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 	
     read_and_handle_choice "${FUNC_LIST[@]}"
@@ -297,21 +299,24 @@ function maintain_process(){
 	printList " 1. 启动${PROCES}"
 	printList " 2. 停止${PROCES}"
 	printList " 3. 重启${PROCES}"
-	printList " 4. exit"
+	printList " 4. 查看${PROCES}运行日志"
+	printList " 5. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
    
-	FUNC_LIST=("process_status ${PROCES}" "process_startup ${PROCES}" "process_shutdown ${PROCES}" "process_restart ${PROCES}")
+	FUNC_LIST=("process_status ${PROCES}" "process_startup ${PROCES}" "process_shutdown ${PROCES}" "process_restart ${PROCES}" "process_log ${PROCES}")
     read_and_handle_choice "${FUNC_LIST[@]}"
 }
 
 function maintain_service_list(){
     declare -i Index=0
+	FUNC_LIST=()
     echo -e "${TEXT}--------------------------------------------${END}"
     for Serv in ${SERVICE_LIST}; do
         printList " ${Index}. ${Serv}"
         FUNC_LIST[${Index}]="maintain_service ${Serv}"
         let Index++
     done
+	printList " ${Index}. exit"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
     read_and_handle_choice "${FUNC_LIST[@]}"
@@ -323,22 +328,22 @@ function maintain_service(){
         return 1
     fi
 
-	Serv=${1}
+	ServI=${1}
 	echo -e "${TEXT}--------------------------------------------${END}"
-    printList " 0. 查看${Serv}状态"
-    printList " 1. 启动${Serv}"
-    printList " 2. 停止${Serv}"
-    printList " 3. 重启${Serv}"
-	if [ ${Serv} == "supervisord" ]; then
-    	printList " 4. 重新读取${PROGRESS}配置文件(会导致重启所有服务)"
+    printList " 0. 查看${ServI}状态"
+    printList " 1. 启动${ServI}"
+    printList " 2. 停止${ServI}"
+    printList " 3. 重启${ServI}"
+	if [ ${ServI} == "supervisord" ]; then
+    	printList " 4. 重新读取${ServI}配置文件(会导致重启所有服务)"
     	printList " 5. exit"
 	else
     	printList " 4. exit"
 	fi
     echo -e "${TEXT}--------------------------------------------${END}\n"
    
-    FUNC_LIST=("systemctl status ${Serv}" "systemctl start ${Serv}" "systemctl stop ${Serv}" "systemctl restart ${Serv}")
-	if [ ${Serv} == "supervisord" ]; then
+    FUNC_LIST=("service_status ${ServI}" "service_startup ${ServI}" "service_shutdown ${ServI}" "service_restart ${ServI}")
+	if [ ${ServI} == "supervisord" ]; then
     	if [ -d ${INSTALL_ROOT}/venv ]; then
 			FUNC_LIST[${#FUNC_LIST[@]}]="${INSTALL_ROOT}/venv/bin/supervisorctl reload"
 		else
@@ -851,7 +856,7 @@ function install_redis(){
     if [ -d packages ]; then
         if [ -f packages/redis-3.2.12-1.el7.x86_64.rpm ] && [ -f packages/jemalloc-3.6.0-1.el7.x86_64.rpm ]; then
 			printList "start install redis"
-        	yum install -y packages/redis-3.2.12-1.el7.x86_64.rpm packages/jemalloc-3.6.0-1.el7.x86_64.rpm
+        	yum install -y --disablerepo=* packages/redis-3.2.12-1.el7.x86_64.rpm packages/jemalloc-3.6.0-1.el7.x86_64.rpm
 			printList "enable redis server start up on boot"
 			systemctl enable redis
 		else
@@ -878,7 +883,7 @@ function remove_redis(){
 	printList "remove redis.service"
 	systemctl disable redis
 	printList "start remove redis"
-	yum remove -y redis
+	yum remove -y --disablerepo=* redis
 	
 	printTitle "remove redis complete"
 }
@@ -1680,7 +1685,7 @@ function process_status(){
     fi
 
     if ! systemctl status supervisord &> /dev/null; then
-        printList "supervisord are not running, bring it up first"
+        printWarn "supervisord are not running, bring it up first"
 		systemctl start supervisord
     fi
 
@@ -1707,7 +1712,7 @@ function process_startup(){
     fi
 
 	if ! systemctl status supervisord &> /dev/null; then
-        printList "supervisord are not running, bring it up first"
+        printWarn "supervisord are not running, bring it up first"
         systemctl start supervisord
     fi
 	
@@ -1734,7 +1739,7 @@ function process_shutdown(){
     fi
 	
 	if ! systemctl status supervisord &> /dev/null; then
-        printList "supervisord are not running, bring it up first"
+        printWarn "supervisord are not running, bring it up first"
         systemctl start supervisord
     fi
 
@@ -1761,7 +1766,7 @@ function process_restart(){
     fi
 	
 	if ! systemctl status supervisord &> /dev/null; then
-        printList "supervisord are not running, bring it up first"
+        printWarn "supervisord are not running, bring it up first"
         systemctl start supervisord
     fi
 
@@ -1769,6 +1774,34 @@ function process_restart(){
 
 	deactivate
 	printTitle "restart ${PROCES} complete"
+}
+
+function process_log(){
+	if [ $# -lt 1 ]; then
+        printWarn "Useage: process_log PROCESS"
+        return 1
+    fi
+
+    PROCES="${1}"
+    printTitle "log ${PROCES} "
+
+    if [ -d ${INSTALL_ROOT}/venv ]; then
+        . ${INSTALL_ROOT}/venv/bin/activate
+    else
+        printWarn "venv not installed. Please install venv first"
+        exit 4
+    fi
+
+    if ! systemctl status supervisord &> /dev/null; then
+        printWarn "supervisord are not running, bring it up first"
+        systemctl start supervisord
+    fi
+
+   	tail -f /var/supervisor/${PROCES}.log
+
+    deactivate
+    printTitle "restart ${PROCES} complete"
+
 }
 
 function service_status(){
@@ -1780,6 +1813,7 @@ function service_status(){
 	SERVIC="${1}"
 	printTitle "status ${SERVIC} "
 
+	printList "status ${SERVIC}"
 	systemctl status ${SERVIC}
 	
 	printTitle "status ${SERVIC} "
@@ -1794,6 +1828,7 @@ function service_startup(){
     SERVIC="${1}"
     printTitle "start ${SERVIC} "
 
+	printList "start ${SERVIC}"
     systemctl start ${SERVIC}
     
     printTitle "start ${SERVIC} "
@@ -1809,6 +1844,7 @@ function service_shutdown(){
     SERVIC="${1}"
     printTitle "stop ${SERVIC} "
 
+	printList "stop ${SERVIC}"
     systemctl stop ${SERVIC}
     
     printTitle "stop ${SERVIC} "
@@ -1824,6 +1860,7 @@ function service_restart(){
     SERVIC="${1}"
     printTitle "restart ${SERVIC} "
 
+	printList "restart ${SERVIC}"
     systemctl restart ${SERVIC}
     
     printTitle "restart ${SERVIC} "
