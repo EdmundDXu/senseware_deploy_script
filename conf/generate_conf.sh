@@ -6,7 +6,7 @@ WEB_ROOT="/home/${SDHUSER}/web"
 WEB="react/single"
 BACKEND_ROOT="/home/${SDHUSER}/backend"
 INSTALL_ROOT="/usr/local"
-SCRIPT_DIR="/root/script"
+MONGODB_PORT="27017"
 
 [ -f sdh.conf ] && . sdh.conf
 
@@ -14,7 +14,13 @@ SUPERVISORD_SAMPLE="[unix_http_server]\nfile=/var/supervisor/supervisor.sock\n\n
 
 SUPERVISORD_SERVICE_SAMPLE="[Unit]\nDescription=Process Monitoring and Control Daemon\nAfter=rc-local.service nss-user-lookup.target\n\n[Service]\nType=forking\nExecStart=${INSTALL_ROOT}/venv/bin/supervisord -c /etc/supervisord.conf\n\n[Install]\nWantedBy=multi-user.target"
 
-MONGOD_SAMPLE="pidfilepath = ${INSTALL_ROOT}/mongodb/mongod.pid\ndbpath = ${INSTALL_ROOT}/mongodb/data\nlogpath = ${INSTALL_ROOT}/mongodb/log/mongod.log\nlogappend = true\nbind_ip = 0.0.0.0\nport = 27017\n\nmaxConns = 20000"
+MONGOD_SAMPLE="pidfilepath = ${INSTALL_ROOT}/mongodb/mongod.pid\ndbpath = ${INSTALL_ROOT}/mongodb/data\nlogpath = ${INSTALL_ROOT}/mongodb/log/mongod.log\nlogappend = true\nbind_ip = 0.0.0.0\nport = ${MONGODB_PORT}\n\nmaxConns = 20000"
+
+RUN_XML_SAMPLE='<?xml version="1.0" encoding="utf-8"?>\n<service>\n<short>Python Server</short>\n<description>Python backend Server</description>\n<port protocol="tcp" port='"\"${BACKEND_PORT}\""'/>\n</service>\n'
+
+WEB_XML_SAMPLE='<?xml version="1.0" encoding="utf-8"?>\n<service>\n<short>Node Server</short>\n<description>Node web Server</description>\n<port protocol="tcp" port='"\"${WEB_PORT}\""'/>\n</service>\n'
+
+MONGODB_XML_SAMPLE='<?xml version="1.0" encoding="utf-8"?>\n<service>\n<short>Mongodb Server</short>\n<description>Mongodb Server</description>\n<port protocol="tcp" port='"\"${MONGODB_PORT}\""'/>\n</service>'
 
 echo "generate conf/supervisord.conf"
 echo -e ${SUPERVISORD_SAMPLE} > ${SCRIPT_DIR}/conf/supervisord.conf
@@ -22,3 +28,9 @@ echo "generate conf/supervisord.service"
 echo -e ${SUPERVISORD_SERVICE_SAMPLE} > ${SCRIPT_DIR}/conf/supervisord.service
 echo "generate conf/mongod.conf"
 echo -e ${MONGOD_SAMPLE} > ${SCRIPT_DIR}/conf/mongod.conf
+echo "generate conf/run.xml"
+echo -e ${RUN_XML_SAMPLE} > ${SCRIPT_DIR}/conf/run.xml
+echo "generate conf/web.xml"
+echo -e ${WEB_XML_SAMPLE} > ${SCRIPT_DIR}/conf/web.xml
+echo "generate conf/mongodb.xml"
+echo -e ${MONGODB_XML_SAMPLE} > ${SCRIPT_DIR}/conf/mongodb.xml
