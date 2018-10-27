@@ -1162,11 +1162,10 @@ function modify_backend_config_files(){
         	printWarn "Rename run.py as run.py.backup-${DATE}"
         	cp -a ${RUNPY} ${RUNPY}-${DATE}
 			sed -i "s@\(program\.run(.*port=\)[[:digit:]]\+\([[:space:]]*,.*\)@\1${BACKEND_PORT}\2@" ${RUNPY}
-			cp -a ${RUNPY} ${RUN82PY}
         else
             printWarn "run.py no change since last modify"
         fi
-
+		cp -a ${RUNPY} ${RUN82PY}
     else
         printWarn "something went wrong with run.py"
         return 7

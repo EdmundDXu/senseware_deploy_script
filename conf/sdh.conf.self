@@ -21,6 +21,8 @@ BACKEND="mongo notification"
 BACKEND_PORT=3082
 # 从哪个git branch 拉取最新代码
 GIT_BRANCH=newDonghuan
+# mongodb服务的监听端口
+MONGODB_PORT="27017"
 
 # config file path
 CONSTANTSJS=/root/script/senseware/react/single/src/general/js/Constants.js
@@ -33,7 +35,7 @@ RUNPY=/root/script/senseware/mongo/run.py
 NVRURL="//122.224.116.44:3001"
 DATAWAREHOUSE="//10.52.14.189:8088"
 # constants.js中新添的两行内容，第一行用于第二台web server和backend server， 第二行用于nginx server
-CONSTANTSJS_NEW_LINE=" '192.168.31.121': 'http://192.168.31.121:3082',"
+CONSTANTSJS_NEW_LINE=" '10.52.14.188': 'http://10.52.14.188:3082',"
 
 # config.ini file
 # config.ini中新添的字段
