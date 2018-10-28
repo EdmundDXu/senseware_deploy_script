@@ -195,14 +195,15 @@ function complex_install(){
     printList " 3. 安装mongodb"
     printList " 4. 安装venv"
     printList " 5. 安装redis"
-    printList " 6. 前端环境安装"
-    printList " 7. 后端环境安装"
-    printList " 8. exit"
+    printList " 6. 安装instantclient"
+    printList " 7. 前端项目安装"
+    printList " 8. 后端项目安装"
+    printList " 9. exit"
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
 
-    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_venv" "install_redis" "install_web_env" "install_backend_env")
+    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_venv" "install_redis" "install_instantclient" "install_web" "install_backend")
 
     read_and_handle_choice "${FUNC_LIST[@]}"
 
@@ -214,18 +215,17 @@ function complex_uninstall(){
     printList " 0. 删除用户"
     printList " 1. 卸载epel源"
     printList " 2. 卸载nodejs"
-	printList " 3. 卸载redis"
-    printList " 3. 卸载venv"
-    printList " 4. 卸载mongodb"
-    printList " 5. 前端环境卸载"
-    printList " 6. 后端环境卸载"
+    printList " 3. 卸载mongodb"
+    printList " 4. 卸载venv"
+	printList " 5. 卸载redis"
+    printList " 6. 卸载instantclient"
     printList " 7. 前端项目卸载"
     printList " 8. 后端项目卸载"
     printList " 9. exit"
     printWarn "Please choice some number to execute separated by spaces Or use continuous intervals separated by dash like(1-3)"
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
-    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_redis" "remove_venv" "remove_mongodb" "remove_web_env" "remove_backend_env" "remove_web" "remove_backend")
+    FUNC_LIST=("remove_user" "remove_epel" "remove_nodejs" "remove_mongodb" "remove_venv" "remove_redis" "remove_instantclient" "remove_web" "remove_backend")
 
     read_and_handle_choice "${FUNC_LIST[@]}"
 }
@@ -397,6 +397,7 @@ function install_backend_env(){
     install_mongodb
 	install_venv
 	install_redis
+	install_instantclient
     printTitle "backend env installed"
 }
 
@@ -429,6 +430,7 @@ function remove_backend_env(){
     remove_venv
     remove_mongodb
 	remove_redis
+	remove_instantclient
     printTitle "backend env removed"
 }
 
@@ -1499,21 +1501,20 @@ function open_firewall_port(){
 	printTitle "open ${Service} port"
 
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
-		printList "copy ${Service}.xml file to /usr/lib/firewalld/services"
-		cp -a conf/${Service}.xml /usr/lib/firewalld/services
+		printList "copy ${Service}.xml file to /etc/firewalld/services"
+		cp -a conf/${Service}.xml /etc/firewalld/services
 		printList "open ${Service} port"
+		firewall-cmd --reload
 		firewall-cmd --permanent --add-service=${Service}
 	else
 		printWarn "directory conf or file conf/${Service}.xml not exists"
 		exit 1
 	fi
-	firewall-cmd --reload
 	printTitle "open ${Service} port complete"
 
 }
 
 function close_firewall_port(){
-	
 	if [ $# -lt 1 ]; then
 		printWarn "Usage: close_firewall_port SERVICE"
 		exit
@@ -1522,8 +1523,8 @@ function close_firewall_port(){
 	Service=${1}
 	printTitle "close ${Service} port"
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
-        printList "delete ${Service}.xml file from /usr/lib/firewalld/services"
-        rm -rf /usr/lib/firewalld/services/${Service}.xml
+        printList "delete ${Service}.xml file from /etc/firewalld/services"
+        rm -rf /etc/firewalld/services/${Service}.xml
 		printList "close ${Service} port"
 		firewall-cmd --permanent --remove-service=${Service}
     else
@@ -1532,6 +1533,61 @@ function close_firewall_port(){
     fi
 	firewall-cmd --reload
 	printTitle "close ${Service} port complete"
+
+}
+
+function install_instantclient(){
+	printTitle "install oracle instantclient"
+	if [ -d packages ]; then
+        printList "install oracle instantclient"
+		if [ -f packages/oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm ] && [ packages/oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm ] && [ -f oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm ]; then
+			yum install --disablerepo=* -y packages/{oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm,oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm,oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm}
+			printList "set instantclient library"
+			sh -c "echo /usr/lib/oracle/12.2/client64/lib > /etc/ld.so.conf.d/oracle-instantclient.conf"
+			ldconfig
+			echo 'export ORACLE_CLIENT_HOME=/usr/lib/oracle/12.2/client64' >> /etc/profile.d/oracle-instantclient.sh
+			echo 'export LD_LIBRARY_PATH=${ORACLE_CLIENT_HOME}/lib:' >> /etc/profile.d/oracle-instantclient.sh
+			
+			printList "set Oracle configuration files to /usr/lib/oracle/12.2/client64/lib/network/admin/tnsnames.ora"
+			sudo mkdir -p /usr/lib/oracle/12.2/client64/lib/network/admin
+			cp tnsnames.ora /usr/lib/oracle/12.2/client64/lib/network/admin
+			echo 'export TNS_ADMIN=${ORACLE_CLIENT_HOME}/lib/network/admin' >> /etc/profile.d/oracle-instantclient.sh
+			
+			printList "set oracle instantclient bin path"
+			echo 'export PATH=${ORACLE_CLIENT_HOME}/bin:$PATH' >> /etc/profile.d/oracle-instantclient.sh
+
+			source /etc/profile
+		else
+			printWarn "oracle-instantclient install file not exists in packages/"
+			exit 4
+		fi
+    else
+        printWarn "directory packages not exists"
+        exit 5
+    fi
+
+	printTitle "install oracle instantclient complete"
+}
+
+function remove_instantclient(){
+	printTitle "remove oracle instantclient"
+    if rpm -ql oracle-instantclient12.2-basic &> /dev/null; then
+        printList "remove oracle instantclient"
+        yum --disablerepo=* -y remove oracle-instantclient12.2-basic oracle-instantclient12.2-devel oracle-instantclient12.2-sqlplus
+        
+		printList "remove instantclient library"
+        rm -rf "/etc/ld.so.conf.d/oracle-instantclient.conf"
+        ldconfig
+        rm -rf /etc/profile.d/oracle-instantclient.sh
+		
+		printList "remove instantclient installation directory /usr/lib/oracle/12.2/client64"	
+		rm -rf /usr/lib/oracle/12.2/client64
+    else
+        printWarn "oracle instantclient not installed"
+        exit 5
+    fi
+
+    printTitle "remove oracle instantclient complete"
 
 }
 
