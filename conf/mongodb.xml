@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <service>
-<short>Mongodb Server</short>
-<description>Mongodb Server</description>
-<port protocol="tcp" port="27017"/>
+  <short>Mongodb Server</short>
+  <description>Mongodb Server</description>
+  <port protocol="tcp" port="27017"/>
 </service>

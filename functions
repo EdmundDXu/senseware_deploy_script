@@ -475,7 +475,7 @@ function version_control(){
     fi
 
 	echo "version `date +%y%m%d`" > ../VERSION
-	git log | head -1 >> ../VERSION
+	git log --skip=1 | head -1 >> ../VERSION
 	cd ${SCRIPT_DIR}
 	printTitle "version file updated"
 }
@@ -518,8 +518,8 @@ function remove_user(){
 function install_epel(){
 	printTitle "Install epel repo"
 	DATE=`date +%Y-%m-%d-%H-%M`
-    [ -f /etc/yum.repos.d/epel.repo ] && printWarn "find exists epel repo. rename it as epel.repo.backup-${DATE}" && mv /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel.repo.backup-${DATE}
-    [ -f /etc/yum.repos.d/epel-testing.repo ] && printWarn "find exists epel-testing repo. rename it as epel-testing.repo.backup-${DATE}" && mv /etc/yum.repos.d/epel-testing.repo /etc/yum.repos.d/epel-testing.repo.backup-${DATE}
+    [ -f /etc/yum.repos.d/epel.repo ] && printWarn "find exists epel repo. rename it as epel.repo.backup-${DATE} in /tmp" && mv /etc/yum.repos.d/epel.repo /tmp/epel.repo.backup-${DATE}
+    [ -f /etc/yum.repos.d/epel-testing.repo ] && printWarn "find exists epel-testing repo. rename it as epel-testing.repo.backup-${DATE} in /tmp" && mv /etc/yum.repos.d/epel-testing.repo /tmp/epel-testing.repo.backup-${DATE}
     if uname -r | grep "el7" &> /dev/null; then
 		if ping -c 1 -W 1 www.baidu.com &> /dev/null; then
         	wget -qO /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo && printList "install /etc/yum.repos.d/epel.repo"
@@ -767,8 +767,8 @@ function make_venv(){
 	fi
 	if [ -d ${INSTALL_ROOT}/venv ]; then
 		DATE=`date +%Y-%m-%d-%H-%M`
-		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup-${DATE}"
-		mv ${INSTALL_ROOT}/venv ${INSTALL_ROOT}/venv-backup-${DATE}
+		printWarn "${INSTALL_ROOT}/venv exists. Rename it as venv-backup-${DATE} in /tmp"
+		mv ${INSTALL_ROOT}/venv /tmp/venv-backup-${DATE}
 	fi
 
 	virtualenv ${INSTALL_ROOT}/venv
@@ -1168,6 +1168,7 @@ function modify_backend_config_files(){
         else
             printWarn "run.py no change since last modify"
         fi
+		printList "copy run.py to run82.py"
 		cp -a ${RUNPY} ${RUN82PY}
     else
         printWarn "something went wrong with run.py"
@@ -1427,7 +1428,7 @@ function archive_all_needs(){
 	ARCHIVE_LIST="$@"
 	echo ${ARCHIVE_LIST}
 	SCRIPT_LIST="install.sh maintain.sh functions sdh.conf VERSION"
-	CONF_LIST="mongod.conf supervisord.conf supervisord.service generate_conf.sh web.xml run.xml mongodb.xml"
+	CONF_LIST="mongod.conf supervisord.conf supervisord.service generate_conf.sh web.xml run.xml mongodb.xml tnsnames.ora"
 	if [ -d deploy ]; then
 		printWarn "directory deploy exists. Remove it"
 		rm -rf deploy
@@ -1514,7 +1515,10 @@ function open_firewall_port(){
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
 		printList "copy ${Service}.xml file to /usr/lib/firewalld/services"
 		cp -a conf/${Service}.xml /usr/lib/firewalld/services
+		printList "copy ${Service}.xml file to /etc/firewalld/services"
+		cp -a conf/${Service}.xml /etc/firewalld/services
 		printList "open ${Service} port"
+		firewall-cmd --reload
 		firewall-cmd --zone=public --permanent --add-service=${Service}
 		firewall-cmd --reload
 	else
@@ -1534,10 +1538,12 @@ function close_firewall_port(){
 	Service=${1}
 	printTitle "close ${Service} port"
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
-        printList "delete ${Service}.xml file from /usr/lib/firewalld/services"
-        rm -rf /use/lib/firewalld/services/${Service}.xml
 		printList "close ${Service} port"
+		firewall-cmd --reload
 		firewall-cmd --zone=public --permanent --remove-service=${Service}
+
+        printList "delete ${Service}.xml file from /usr/lib/firewalld/services"
+        rm -rf /usr/lib/firewalld/services/${Service}.xml
     else
         printWarn "directory conf or file conf/${Service}.xml not exists"
         exit 1
