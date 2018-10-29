@@ -777,7 +777,7 @@ function make_venv(){
     else
         printWarn "${INSTALL_ROOT}/venv not exists. could not activate venv"
     fi
-	which pip
+	which pip2
 	
 	# 更新并安装最新的python包
 	download_and_install_python_packages
@@ -796,7 +796,7 @@ function make_venv(){
 
 	# 安装celery
 	pip2 install celery
-
+	
 	# 安装完后将venv打包
 	archive_venv
 
@@ -976,8 +976,9 @@ function download_and_install_python_packages(){
     fi
 
     printList "download and install python packages from requirements.txt"
+
     if [ -f requirements.txt ]; then
-        pip install -r requirements.txt
+        /usr/local/venv/bin/pip2 install -r requirements.txt
 		cd ${SCRIPT_DIR}
     else
         printWarn "requirements.txt not exists in ${LOCAL_PROJECT}"
@@ -1085,8 +1086,8 @@ function modify_web_config_files(){
 	if grep "const allUrl = {" ${CONSTANTSJS} &> /dev/null; then
 		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONSTANTSJS} &> /dev/null; then
 			DATE=`date +%Y-%m-%d-%H-%M`
-			printWarn "Rename Constants.js as Constants.js.newline-${DATE}"
-			cp -a ${CONSTANTSJS} ${CONSTANTSJS}.newline-${DATE}
+			printWarn "Rename Constants.js as Constants.js.newline-${DATE} in /tmp"
+			cp -a ${CONSTANTSJS} /tmp/Constants.js.newline-${DATE}
 			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONSTANTSJS}
 		fi
 	else
@@ -1098,8 +1099,8 @@ function modify_web_config_files(){
 	if grep "nvrUrl" ${CONSTANTSJS} &> /dev/null && grep "${NVRURL}" ${CONSTANTSJS} &> /dev/null ; then
         if ! grep "^[[:space:]]*nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*" ${CONSTANTSJS} &> /dev/null; then
             DATE=`date +%Y-%m-%d-%H-%M`
-            printWarn "Rename Constants.js as Constants.js.nvrUrl-${DATE}"
-            cp -a ${CONSTANTSJS} ${CONSTANTSJS}.nvrUrl-${DATE}
+            printWarn "Rename Constants.js as Constants.js.nvrUrl-${DATE} in /tmp"
+            cp -a ${CONSTANTSJS} /tmp/Constants.js.nvrUrl-${DATE}
             # 将其他没被注释的nvrUrl注释起来
             sed -i "s@^[[:space:]]*\(nvrUrl:.*\)@  // \1@i" ${CONSTANTSJS}
 
@@ -1115,8 +1116,8 @@ function modify_web_config_files(){
 	if grep "datawarehouse" ${CONSTANTSJS} &> /dev/null && grep "${DATAWAREHOUSE}" ${CONSTANTSJS} &> /dev/null ; then
     	if ! grep "^[[:space:]]*datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*" ${CONSTANTSJS} &> /dev/null; then
     		DATE=`date +%Y-%m-%d-%H-%M`
-			printWarn "Rename Constants.js as Constants.js.datawarehouse-${DATE}"
-			cp -a ${CONSTANTSJS} ${CONSTANTSJS}.datawarehouse-${DATE}
+			printWarn "Rename Constants.js as Constants.js.datawarehouse-${DATE} in /tmp"
+			cp -a ${CONSTANTSJS} /tmp/Constants.js.datawarehouse-${DATE}
 	    	# 将其他没被注释的datawarehouse注释起来
 	    	sed -i "s@^[[:space:]]*\(datawarehouse:.*\)@  // \1@i" ${CONSTANTSJS}
 
@@ -1138,8 +1139,8 @@ function modify_web_config_files(){
 	if grep "app.listen(" ${WEBJS} &> /dev/null; then
 		if ! grep "app.listen(.*${WEB_PORT}" ${WEBJS} &> /dev/null; then
 			DATE=`date +%Y-%m-%d-%H-%M`
-        	printWarn "Rename web.js as web.js.backup-${DATE}"
-        	cp -a ${WEBJS} ${WEBJS}-${DATE}
+        	printWarn "Rename web.js as web.js.backup-${DATE} in /tmp"
+        	cp -a ${WEBJS} /tmp/web.js-${DATE}
 			sed -i "s@\(app.listen(\)[[:digit:]]\+\([[:space:]]*,.*\)@\1${WEB_PORT}\2@" ${WEBJS}
 		else
 			printWarn "web.js no change since last modify"
@@ -1161,8 +1162,8 @@ function modify_backend_config_files(){
 	if grep "program.run(.*port=" ${RUNPY} &> /dev/null; then
 		if ! grep "program\.run(.*port[[:space:]]*=[[:space:]]*${BACKEND_PORT}" ${RUNPY} &> /dev/null; then
 			DATE=`date +%Y-%m-%d-%H-%M`
-        	printWarn "Rename run.py as run.py.backup-${DATE}"
-        	cp -a ${RUNPY} ${RUNPY}-${DATE}
+        	printWarn "Rename run.py as /tmp/run.py.backup-${DATE}"
+        	cp -a ${RUNPY} /tmp/run.py-${DATE}
 			sed -i "s@\(program\.run(.*port=\)[[:digit:]]\+\([[:space:]]*,.*\)@\1${BACKEND_PORT}\2@" ${RUNPY}
         else
             printWarn "run.py no change since last modify"
@@ -1216,8 +1217,8 @@ function modify_backend_config_files(){
 	# 在config.ini中新添加一个集群节点的配置
 	if ! grep "\<${MONGO_CLUSTER}\>" ${CONFIGINI} &> /dev/null; then
 		DATE=`date +%Y-%m-%d-%H-%M`
-        printWarn "Rename config.ini as config.ini.backup-${DATE}"
-        cp -a ${CONFIGINI} ${CONFIGINI}-${DATE}
+        printWarn "Rename config.ini as config.ini.backup-${DATE} in /tmp"
+        cp -a ${CONFIGINI} /tmp/config.ini-${DATE}
 		sed -i "1 i${MONGO_CLUSTER_NEW_LINE}" ${CONFIGINI}
 	else
 		printWarn "Already have [${MONGO_CLUSTER}] item, please modify it manually"
@@ -1230,8 +1231,8 @@ function modify_backend_config_files(){
 	if grep "URL_FOR_C_INTERFACE[[:space:]]*=[[:space:]]*" ${CONFIGINI} &> /dev/null && grep "\<${URL_FOR_C_INTERFACE}" ${CONFIGINI} &> /dev/null; then
          if ! grep "^[[:space:]]*URL_FOR_C_INTERFACE[[:space:]]*=[[:space:]]*${URL_FOR_C_INTERFACE}" ${CONFIGINI} &> /dev/null; then
             DATE=`date +%Y-%m-%d-%H-%M`
-            printWarn "Rename config.ini as config.ini.backup-${DATE}"
-            cp -a ${CONFIGINI} ${CONFIGINI}-${DATE}
+            printWarn "Rename config.ini as config.ini.backup-${DATE} in /tmp"
+            cp -a ${CONFIGINI} /tmp/config.ini-${DATE}
 
             # 将其他没被注释的URL_FOR_C_INTERFACE注释起来
             sed -i "s@^[[:space:]]*\(URL_FOR_C_INTERFACE.*\)@; \1@i" ${CONFIGINI}
@@ -1471,7 +1472,17 @@ function install_font(){
 	printTitle "install arial font"
 	if ! rpm -ql fontconfig &> /dev/null; then
 		printList "install fontconfig-2.10.95-11.el7.x86_64"
-		yum install -y --disablerepo=* packages/fontconfig-2.10.95-11.el7.x86_64.rpm packages/fontpackages-filesystem-1.44-8.el7.noarch.rpm packages/lyx-fonts-2.2.3-1.el7.noarch.rpm
+		if [ -d packages ]; then
+			if [ -f packages/fontconfig-2.10.95-11.el7.x86_64.rpm ] && [ -f packages/fontpackages-filesystem-1.44-8.el7.noarch.rpm ] && [ -f packages/lyx-fonts-2.2.3-1.el7.noarch.rpm ]; then
+				yum install -y --disablerepo=* packages/fontconfig-2.10.95-11.el7.x86_64.rpm packages/fontpackages-filesystem-1.44-8.el7.noarch.rpm packages/lyx-fonts-2.2.3-1.el7.noarch.rpm
+			else
+        		printWarn "installation file packages/fontconfig-2.10.95-11.el7.x86_64.rpm packages/fontpackages-filesystem-1.44-8.el7.noarch.rpm packages/lyx-fonts-2.2.3-1.el7.noarch.rpm for font not exists"
+        		exit 5
+			fi		
+		else
+        	printWarn "directory packages not exists"
+        	exit 5
+    	fi
 	fi
 
 	if [ ! -d /usr/share/fonts ]; then
@@ -1501,11 +1512,11 @@ function open_firewall_port(){
 	printTitle "open ${Service} port"
 
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
-		printList "copy ${Service}.xml file to /etc/firewalld/services"
-		cp -a conf/${Service}.xml /etc/firewalld/services
+		printList "copy ${Service}.xml file to /usr/lib/firewalld/services"
+		cp -a conf/${Service}.xml /usr/lib/firewalld/services
 		printList "open ${Service} port"
+		firewall-cmd --zone=public --permanent --add-service=${Service}
 		firewall-cmd --reload
-		firewall-cmd --permanent --add-service=${Service}
 	else
 		printWarn "directory conf or file conf/${Service}.xml not exists"
 		exit 1
@@ -1523,10 +1534,10 @@ function close_firewall_port(){
 	Service=${1}
 	printTitle "close ${Service} port"
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
-        printList "delete ${Service}.xml file from /etc/firewalld/services"
-        rm -rf /etc/firewalld/services/${Service}.xml
+        printList "delete ${Service}.xml file from /usr/lib/firewalld/services"
+        rm -rf /use/lib/firewalld/services/${Service}.xml
 		printList "close ${Service} port"
-		firewall-cmd --permanent --remove-service=${Service}
+		firewall-cmd --zone=public --permanent --remove-service=${Service}
     else
         printWarn "directory conf or file conf/${Service}.xml not exists"
         exit 1
@@ -1540,7 +1551,7 @@ function install_instantclient(){
 	printTitle "install oracle instantclient"
 	if [ -d packages ]; then
         printList "install oracle instantclient"
-		if [ -f packages/oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm ] && [ packages/oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm ] && [ -f oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm ]; then
+		if [ -f packages/oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm ] && [ -f packages/oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm ] && [ -f packages/oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm ]; then
 			yum install --disablerepo=* -y packages/{oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm,oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm,oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm}
 			printList "set instantclient library"
 			sh -c "echo /usr/lib/oracle/12.2/client64/lib > /etc/ld.so.conf.d/oracle-instantclient.conf"
@@ -1550,7 +1561,13 @@ function install_instantclient(){
 			
 			printList "set Oracle configuration files to /usr/lib/oracle/12.2/client64/lib/network/admin/tnsnames.ora"
 			sudo mkdir -p /usr/lib/oracle/12.2/client64/lib/network/admin
-			cp tnsnames.ora /usr/lib/oracle/12.2/client64/lib/network/admin
+			
+			if [ -d conf ] && [ -f conf/tnsnames.ora ]; then 
+				cp conf/tnsnames.ora /usr/lib/oracle/12.2/client64/lib/network/admin
+			else
+				printWarn "directory conf or file conf/tnsnames.ora not exists"
+				exit 4
+			fi
 			echo 'export TNS_ADMIN=${ORACLE_CLIENT_HOME}/lib/network/admin' >> /etc/profile.d/oracle-instantclient.sh
 			
 			printList "set oracle instantclient bin path"
@@ -1558,7 +1575,7 @@ function install_instantclient(){
 
 			source /etc/profile
 		else
-			printWarn "oracle-instantclient install file not exists in packages/"
+			printWarn "oracle-instantclient install file packages/oracle-instantclient12.2-basic-12.2.0.1.0-1.x86_64.rpm packages/oracle-instantclient12.2-devel-12.2.0.1.0-1.x86_64.rpm packages/oracle-instantclient12.2-sqlplus-12.2.0.1.0-1.x86_64.rpm not exists"
 			exit 4
 		fi
     else
