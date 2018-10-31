@@ -1203,16 +1203,12 @@ function modify_backend_config_files(){
 	printTitle "modify config.ini"
 	
 	# 在config.ini中验证MONGO_YDXX配置
-	while true; do
-		SED_LINE=`sed -e '/\[MONGO_YDXX\]/,/;HOST=10/!d' ${CONFIGINI} | wc -l`
-		if [ ${SED_LINE} -gt 2 ];then
-			grep -A 5 "\[MONGO_YDXX\]" ${CONFIGINI}
-			printWarn "something wrong with [MONGO_YDXX] in config.ini"
-			vim ${CONFIGINI}
-		else
-			break
-		fi
-	done
+	SED_LINE=`sed -e '/\[MONGO_YDXX\]/,/;HOST=10/!d' ${CONFIGINI} | wc -l`
+	if [ ${SED_LINE} -gt 2 ];then
+		grep -A 5 "\[MONGO_YDXX\]" ${CONFIGINI}
+		printWarn "something wrong with [MONGO_YDXX] in config.ini"
+		vim ${CONFIGINI}
+	fi
 
 
 	# 在config.ini中新添加一个集群节点的配置
@@ -1515,10 +1511,8 @@ function open_firewall_port(){
 	if [ -d conf ] && [ -f conf/${Service}.xml ]; then
 		printList "copy ${Service}.xml file to /usr/lib/firewalld/services"
 		cp -a conf/${Service}.xml /usr/lib/firewalld/services
-		printList "copy ${Service}.xml file to /etc/firewalld/services"
-		cp -a conf/${Service}.xml /etc/firewalld/services
 		printList "open ${Service} port"
-		firewall-cmd --reload
+		sleep 3
 		firewall-cmd --zone=public --permanent --add-service=${Service}
 		firewall-cmd --reload
 	else
