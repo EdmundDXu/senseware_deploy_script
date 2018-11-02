@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <service>
-  <short>Python Server</short>
-  <description>Python backend Server</description>
-  <port protocol="tcp" port="3082"/>
+<short>Python Server</short>
+<description>Python backend Server</description>
+<port protocol="tcp" port="3082"/>
 </service>
+
