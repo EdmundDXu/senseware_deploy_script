@@ -159,7 +159,7 @@ function quick_start(){
     printWarn "Please choice a number to execute: "
     echo -e "${TEXT}--------------------------------------------${END}\n"
     
-	ARCHIVE_LIST="kafka.tar.gz mongo.tar.gz notification.tar.gz react.tar.gz"
+	ARCHIVE_LIST="mongo.tar.gz notification.tar.gz react.tar.gz"
     FUNC_LIST=("install_web_env" "install_backend_env" "update_web" "update_backend" "archive_all_needs ${ARCHIVE_LIST}"  "deploy_web" "deploy_backend" "remove_web_env" "remove_backend_env")
 
     read_and_handle_choice "${FUNC_LIST[@]}"
@@ -1079,58 +1079,76 @@ function pull_senseware(){
 
 
 function modify_web_config_files(){
-    # modify Constants.js
-    printTitle "modify Constants.js"
+    # modify config.js
+    printTitle "modify config.js"
 	CONSTANTSJS_NEW_LINE=${CONSTANTSJS_NEW_LINE:=" '172.21.8.120': 'http://172.21.8.118:3082',\n  '172.21.8.121': 'http://172.21.8.121:3082',"}
 	# 添加两行，其中一行是第二台web server和backend server，另一行是nginx server
-	if grep "const allUrl = {" ${CONSTANTSJS} &> /dev/null; then
-		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONSTANTSJS} &> /dev/null; then
+	if grep "const allUrl = {" ${CONFIGJS} &> /dev/null; then
+		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONFIGJS} &> /dev/null; then
 			DATE=`date +%Y-%m-%d-%H-%M`
-			printWarn "Rename Constants.js as Constants.js.newline-${DATE} in /tmp"
-			cp -a ${CONSTANTSJS} /tmp/Constants.js.newline-${DATE}
-			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONSTANTSJS}
+			printWarn "Rename config.js as config.js.newline-${DATE} in /tmp"
+			cp -a ${CONFIGJS} /tmp/config.js.newline-${DATE}
+			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONFIGJS}
 		fi
 	else
-		printWarn "something wrong with Constant.js"
+		printWarn "something wrong with config.js"
 		exit 7
 	fi
-    printText "`cat ${CONSTANTSJS} | grep -A 10 'const allUrl = {'`"
+    printText "`cat ${CONFIGJS} | grep -A 10 'const allUrl = {'`"
 
-	if grep "nvrUrl" ${CONSTANTSJS} &> /dev/null && grep "${NVRURL}" ${CONSTANTSJS} &> /dev/null ; then
-        if ! grep "^[[:space:]]*nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*" ${CONSTANTSJS} &> /dev/null; then
+	if grep "title" ${CONFIGJS} &> /dev/null && grep "${SDHTITLE}" ${CONFIGJS} &> /dev/null ; then
+        if ! grep "^[[:space:]]*title[[:space:]]*:[[:space:]]*'${SDHTITLE}'.*" ${CONFIGJS} &> /dev/null; then
             DATE=`date +%Y-%m-%d-%H-%M`
-            printWarn "Rename Constants.js as Constants.js.nvrUrl-${DATE} in /tmp"
-            cp -a ${CONSTANTSJS} /tmp/Constants.js.nvrUrl-${DATE}
-            # 将其他没被注释的nvrUrl注释起来
-            sed -i "s@^[[:space:]]*\(nvrUrl:.*\)@  // \1@i" ${CONSTANTSJS}
+            printWarn "Rename config.js as config.js.title-${DATE} in /tmp"
+            cp -a ${CONFIGJS} /tmp/config.js.title-${DATE}
+            # 将其他没被注释的title注释起来
+            sed -i "s@^[[:space:]]*\(title:.*\)@  // \1@i" ${CONFIGJS}
 
-            # 将// nvrUrl: ${NVRURL}的注释去掉
-            sed -i "s@[[:space:]]*//[[:space:]]*\(nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*\)@  \1@i" ${CONSTANTSJS}
+            # 将// title: ${SDHTITLE}的注释去掉
+            sed -i "s@[[:space:]]*//[[:space:]]*\(title[[:space:]]*:[[:space:]]*'${SDHTITLE}'.*\)@  \1@i" ${CONFIGJS}
         fi
     else
-        printWarn "something wrong with nvrUrl in Constant.js"
+        printWarn "something wrong with title in config.js"
+        exit 7
+    fi
+    printText "`cat ${CONFIGJS} | grep -C 1 'title'`"
+
+
+	if grep "nvrUrl" ${CONFIGJS} &> /dev/null && grep "${NVRURL}" ${CONFIGJS} &> /dev/null ; then
+        if ! grep "^[[:space:]]*nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*" ${CONFIGJS} &> /dev/null; then
+            DATE=`date +%Y-%m-%d-%H-%M`
+            printWarn "Rename config.js as config.js.nvrUrl-${DATE} in /tmp"
+            cp -a ${CONFIGJS} /tmp/config.js.nvrUrl-${DATE}
+            # 将其他没被注释的nvrUrl注释起来
+            sed -i "s@^[[:space:]]*\(nvrUrl:.*\)@  // \1@i" ${CONFIGJS}
+
+            # 将// nvrUrl: ${NVRURL}的注释去掉
+            sed -i "s@[[:space:]]*//[[:space:]]*\(nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*\)@  \1@i" ${CONFIGJS}
+        fi
+    else
+        printWarn "something wrong with nvrUrl in config.js"
         exit 7
     fi	
-	printText "`cat ${CONSTANTSJS} | grep -C 3 'nvrUrl'`"
+	printText "`cat ${CONFIGJS} | grep -C 3 'nvrUrl'`"
 
-	if grep "datawarehouse" ${CONSTANTSJS} &> /dev/null && grep "${DATAWAREHOUSE}" ${CONSTANTSJS} &> /dev/null ; then
-    	if ! grep "^[[:space:]]*datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*" ${CONSTANTSJS} &> /dev/null; then
+	if grep "datawarehouse" ${CONFIGJS} &> /dev/null && grep "${DATAWAREHOUSE}" ${CONFIGJS} &> /dev/null ; then
+    	if ! grep "^[[:space:]]*datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*" ${CONFIGJS} &> /dev/null; then
     		DATE=`date +%Y-%m-%d-%H-%M`
-			printWarn "Rename Constants.js as Constants.js.datawarehouse-${DATE} in /tmp"
-			cp -a ${CONSTANTSJS} /tmp/Constants.js.datawarehouse-${DATE}
+			printWarn "Rename config.js as config.js.datawarehouse-${DATE} in /tmp"
+			cp -a ${CONFIGJS} /tmp/config.js.datawarehouse-${DATE}
 	    	# 将其他没被注释的datawarehouse注释起来
-	    	sed -i "s@^[[:space:]]*\(datawarehouse:.*\)@  // \1@i" ${CONSTANTSJS}
+	    	sed -i "s@^[[:space:]]*\(datawarehouse:.*\)@  // \1@i" ${CONFIGJS}
 
 	    	# 将// datawarehouse: ${DATAWAREHOUSE}的注释去掉
-	    	sed -i "s@[[:space:]]*//[[:space:]]*\(datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*\)@  \1@i" ${CONSTANTSJS}
+	    	sed -i "s@[[:space:]]*//[[:space:]]*\(datawarehouse[[:space:]]*:[[:space:]]*'${DATAWAREHOUSE}'.*\)@  \1@i" ${CONFIGJS}
     	fi
 	else
-		printWarn "something wrong with datawarehouse in Constant.js"
+		printWarn "something wrong with datawarehouse in config.js"
 		exit 7
 	fi
-    printText "`cat ${CONSTANTSJS} | grep -C 1 'datawarehouse'`"
+    printText "`cat ${CONFIGJS} | grep -C 1 'datawarehouse'`"
 
-	printTitle "modify Constant.js complete"
+	printTitle "modify config.js complete"
 
 
     # modify web.js
@@ -1402,12 +1420,11 @@ function remove_backend(){
 function deploy_kafka(){
     printTitle "start deploy kafka config"
     if [ -d ${BACKEND_ROOT}/mongo ]; then
-        printList "copy kafka config to ${BACKEND_ROOT}/mongo"
-        if [ -d packages ]; then
-			tar xf packages/kafka.tar.gz -C ${BACKEND_ROOT}/mongo
-			cp ${BACKEND_ROOT}/mongo/kafka_module/config.py ${BACKEND_ROOT}/mongo
+        printList "copy ${BACKEND_ROOT}/mongo/kafka_module/{tasks.py,config.py} to ${BACKEND_ROOT}/mongo"
+        if [ -d ${BACKEND_ROOT}/mongo/kafka_module ]; then
+			cp -a ${BACKEND_ROOT}/mongo/kafka_module/{tasks.py,config.py} ${BACKEND_ROOT}/mongo
 		else
-            printWarn "directory packages not exist"
+            printWarn "directory ${BACKEND_ROOT}/mongo/kafka_module not exist"
             return 5
         fi
     else
