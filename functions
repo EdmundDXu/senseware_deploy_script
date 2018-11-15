@@ -968,10 +968,10 @@ function download_or_update_python_packages(){
 
 function download_and_install_python_packages(){
 	printTitle "download and install python packages"
-    if [ -d ${LOCAL_PROJECT} ]; then
-        cd ${LOCAL_PROJECT}
+    if [ -d ${LOCAL_PROJECT}/mongo ]; then
+        cd ${LOCAL_PROJECT}/mongo
     else
-        printWarn "Local project ${LOCAL_PROJECT} for installation does not exists."
+        printWarn "Local project ${LOCAL_PROJECT}/mongo for installation does not exists."
         return 5
     fi
 
