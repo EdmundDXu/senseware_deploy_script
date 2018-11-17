@@ -1096,17 +1096,18 @@ function modify_web_config_files(){
 	fi
     printText "`cat ${CONFIGJS} | grep -A 10 'const allUrl = {'`"
 
-	if grep "title" ${CONFIGJS} &> /dev/null && grep "${SDHTITLE}" ${CONFIGJS} &> /dev/null ; then
-        if ! grep "^[[:space:]]*title[[:space:]]*:[[:space:]]*'${SDHTITLE}'.*" ${CONFIGJS} &> /dev/null; then
+	if grep "title" ${CONFIGJS} &> /dev/null ; then
+		if ! grep "^[[:space:]]*title[[:space:]]*:[[:space:]]*'${SDHTITLE}'.*" ${CONFIGJS} &> /dev/null; then
             DATE=`date +%Y-%m-%d-%H-%M`
             printWarn "Rename config.js as config.js.title-${DATE} in /tmp"
             cp -a ${CONFIGJS} /tmp/config.js.title-${DATE}
+
             # 将其他没被注释的title注释起来
             sed -i "s@^[[:space:]]*\(title:.*\)@  // \1@i" ${CONFIGJS}
 
             # 将// title: ${SDHTITLE}的注释去掉
             sed -i "s@[[:space:]]*//[[:space:]]*\(title[[:space:]]*:[[:space:]]*'${SDHTITLE}'.*\)@  \1@i" ${CONFIGJS}
-        fi
+		fi
     else
         printWarn "something wrong with title in config.js"
         exit 7
