@@ -33,7 +33,6 @@ RUNPY=/root/script/senseware/mongo/run.py
 RUN82PY=/root/script/senseware/mongo/run82.py
 
 # Constants.js file
-SDHTITLE="感·智营维"
 NVRURL="//122.224.116.44:3001"
 DATAWAREHOUSE="//10.52.14.189:8088"
 # constants.js中新添的两行内容，第一行用于第二台web server和backend server， 第二行用于nginx server
