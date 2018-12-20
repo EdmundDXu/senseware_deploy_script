@@ -203,7 +203,7 @@ function complex_install(){
     echo -e "${TEXT}--------------------------------------------${END}\n"
 
 
-    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_venv" "install_redis" "install_instantclient" "install_web" "install_backend")
+    FUNC_LIST=("add_user" "install_epel" "install_nodejs" "install_mongodb" "install_venv" "install_redis" "install_instantclient" "deploy_web" "deploy_backend")
 
     read_and_handle_choice "${FUNC_LIST[@]}"
 
@@ -1080,21 +1080,21 @@ function pull_senseware(){
 
 function modify_web_config_files(){
     # modify config.js
-    printTitle "modify config.js"
-	CONSTANTSJS_NEW_LINE=${CONSTANTSJS_NEW_LINE:=" '172.21.8.120': 'http://172.21.8.118:3082',\n  '172.21.8.121': 'http://172.21.8.121:3082',"}
+#    printTitle "modify config.js"
+#	CONSTANTSJS_NEW_LINE=${CONSTANTSJS_NEW_LINE:=" '172.21.8.120': 'http://172.21.8.118:3082',\n  '172.21.8.121': 'http://172.21.8.121:3082',"}
 	# 添加两行，其中一行是第二台web server和backend server，另一行是nginx server
-	if grep "const allUrl = {" ${CONFIGJS} &> /dev/null; then
-		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONFIGJS} &> /dev/null; then
-			DATE=`date +%Y-%m-%d-%H-%M`
-			printWarn "Rename config.js as config.js.newline-${DATE} in /tmp"
-			cp -a ${CONFIGJS} /tmp/config.js.newline-${DATE}
-			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONFIGJS}
-		fi
-	else
-		printWarn "something wrong with config.js"
-		exit 7
-	fi
-    printText "`cat ${CONFIGJS} | grep -A 10 'const allUrl = {'`"
+#	if grep "const allUrl = {" ${CONFIGJS} &> /dev/null; then
+#		if ! grep "`echo -e ${CONSTANTSJS_NEW_LINE}`" ${CONFIGJS} &> /dev/null; then
+#			DATE=`date +%Y-%m-%d-%H-%M`
+#			printWarn "Rename config.js as config.js.newline-${DATE} in /tmp"
+#			cp -a ${CONFIGJS} /tmp/config.js.newline-${DATE}
+#			sed -i "/const allUrl = {/a\ ${CONSTANTSJS_NEW_LINE}" ${CONFIGJS}
+#		fi
+#	else
+#		printWarn "something wrong with config.js"
+#		exit 7
+#	fi
+#    printText "`cat ${CONFIGJS} | grep -A 10 'const allUrl = {'`"
 
 	if grep "nvrUrl" ${CONFIGJS} &> /dev/null && grep "${NVRURL}" ${CONFIGJS} &> /dev/null ; then
         if ! grep "^[[:space:]]*nvrUrl[[:space:]]*:[[:space:]]*'${NVRURL}'.*" ${CONFIGJS} &> /dev/null; then
@@ -1212,16 +1212,16 @@ function modify_backend_config_files(){
 
 
 	# 在config.ini中新添加一个集群节点的配置
-	if ! grep "\<${MONGO_CLUSTER}\>" ${CONFIGINI} &> /dev/null; then
-		DATE=`date +%Y-%m-%d-%H-%M`
-        printWarn "Rename config.ini as config.ini.backup-${DATE} in /tmp"
-        cp -a ${CONFIGINI} /tmp/config.ini-${DATE}
-		sed -i "1 i${MONGO_CLUSTER_NEW_LINE}" ${CONFIGINI}
-	else
-		printWarn "Already have [${MONGO_CLUSTER}] item, please modify it manually"
-		# return 9
-	fi
-    printText "`cat ${CONFIGINI} | grep -A 5 ${MONGO_CLUSTER}`"
+#	if ! grep "\<${MONGO_CLUSTER}\>" ${CONFIGINI} &> /dev/null; then
+#		DATE=`date +%Y-%m-%d-%H-%M`
+#        printWarn "Rename config.ini as config.ini.backup-${DATE} in /tmp"
+#        cp -a ${CONFIGINI} /tmp/config.ini-${DATE}
+#		sed -i "1 i${MONGO_CLUSTER_NEW_LINE}" ${CONFIGINI}
+#	else
+#		printWarn "Already have [${MONGO_CLUSTER}] item, please modify it manually"
+#		# return 9
+#	fi
+#    printText "`cat ${CONFIGINI} | grep -A 5 ${MONGO_CLUSTER}`"
 
 
 	# 在config.ini中修改c接口配置
@@ -1341,8 +1341,8 @@ function deploy_web(){
 		WEB_NAME="`echo "${web}" | cut -d"/" -f1`"
     	if [ -d ${WEB_ROOT}/${WEB_NAME} ]; then
 			DATE=`date +%Y-%m-%d-%H-%M`
-        	printWarn "${WEB_ROOT}/${WEB_NAME} exists. Rename it as ${WEB_NAME}-${DATE}"
-        	mv ${WEB_ROOT}/${WEB_NAME} ${WEB_ROOT}/${WEB_NAME}-${DATE}
+        	printWarn "${WEB_ROOT}/${WEB_NAME} exists. Move it to /tmp/${WEB_NAME}-${DATE}"
+        	mv ${WEB_ROOT}/${WEB_NAME} /tmp/${WEB_NAME}-${DATE}
     	fi
     
    		printList "copy web project to ${WEB_ROOT}/${WEB_NAME}"
@@ -1371,8 +1371,8 @@ function deploy_backend(){
     DATE=`date +%Y-%m-%d-%H-%M`
 	for back in ${BACKEND}; do
     	if [ -d ${BACKEND_ROOT}/${back} ]; then
-        	printWarn "${BACKEND_ROOT}/${back} exists. Rename it as ${back}-${DATE}"
-        	mv ${BACKEND_ROOT}/${back} ${BACKEND_ROOT}/${back}-${DATE}
+        	printWarn "${BACKEND_ROOT}/${back} exists. Move it to /tmp/${back}-${DATE}"
+        	mv ${BACKEND_ROOT}/${back} /tmp/${back}-${DATE}
     	fi
 
     	printList "copy backend project to ${BACKEND_ROOT}/${back}"
