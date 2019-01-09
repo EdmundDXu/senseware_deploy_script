@@ -475,7 +475,7 @@ function version_control(){
     fi
 
 	echo "version `date +%y%m%d`" > ../VERSION
-	git log --skip=1 | head -1 >> ../VERSION
+	git log | head -1 >> ../VERSION
 	cd ${SCRIPT_DIR}
 	printTitle "version file updated"
 }
